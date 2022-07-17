@@ -1,0 +1,8 @@
+{
+  "name": "Plugin for Youtube",
+  "version": "1.0.0",
+  "script": "dist/index.js",
+  "options": "dist/options.html",
+  "player": "dist/player.html",
+  "description": "Plugin for playing videos from youtube.com"
+}
