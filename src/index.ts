@@ -184,6 +184,24 @@ function playlistSearchResultToPlaylist(
   }));
 }
 
+function channelSearchResultToChannel(
+  result: GoogleAppsScript.YouTube.Schema.SearchListResponse
+): Channel[] {
+  const items = result.items || [];
+
+  return items.map((r) => ({
+    apiId: r.id?.channelId,
+    name: r.snippet?.channelTitle || "",
+    images: [
+      {
+        width: r.snippet?.thumbnails?.default?.width || 0,
+        url: r.snippet?.thumbnails?.default?.url || "",
+        height: r.snippet?.thumbnails?.default?.height || 0,
+      },
+    ],
+  }));
+}
+
 function resultToVideoYoutube(
   result: GoogleAppsScript.YouTube.Schema.VideoListResponse
 ): Video[] {
@@ -256,6 +274,51 @@ async function searchVideos(
     },
   };
   return trackResults;
+}
+
+async function searchChannels(
+  request: SearchRequest
+): Promise<SearchChannelResult> {
+  const url = "https://www.googleapis.com/youtube/v3/search";
+  let urlWithQuery = `${url}?part=snippet&type=channel&maxResults=50&key=${getApiKey()}&q=${encodeURIComponent(
+    request.query
+  )}`;
+  const results =
+    await axios.get<GoogleAppsScript.YouTube.Schema.SearchListResponse>(
+      urlWithQuery
+    );
+
+  return {
+    items: channelSearchResultToChannel(results.data),
+  };
+}
+
+async function getChannelVideos(
+  request: ChannelVideosRequest
+): Promise<ChannelVideosResult> {
+  const url = "https://youtube.googleapis.com/youtube/v3/channels";
+  const urlWithQuery = `${url}?part=contentDetails&id=${
+    request.apiId
+  }&key=${getApiKey()}`;
+  const results =
+    await axios.get<GoogleAppsScript.YouTube.Schema.ChannelListResponse>(
+      urlWithQuery
+    );
+  const channels = results.data.items;
+  const channelInfo = channels && channels[0];
+  if (channelInfo) {
+    const uploadsPlaylist =
+      channelInfo.contentDetails?.relatedPlaylists?.uploads;
+    const videos = await getPlaylistVideos({
+      apiId: uploadsPlaylist,
+      isUserPlaylist: false,
+    });
+    return { items: videos.items };
+  }
+
+  return {
+    items: [],
+  };
 }
 
 async function searchPlaylists(
@@ -355,10 +418,7 @@ async function getYoutubeVideoFromApiId(apiId: string): Promise<Video> {
   const url = `https://pipedapi.kavin.rocks/streams/${apiId}`;
   const response = await axios.get<PipedApiResponse>(url);
   const data = response.data;
-  const sortedArray = data.videoStreams
-    .filter((v) => v.format === "MPEG_4")
-    .sort((a, b) => b.bitrate - a.bitrate);
-  // const stream = sortedArray[0];
+
   const video: Video = {
     title: data.title,
     apiId: apiId,
@@ -371,19 +431,24 @@ async function getYoutubeVideoFromApiId(apiId: string): Promise<Video> {
 async function searchAll(request: SearchRequest): Promise<SearchAllResult> {
   const videosPromise = searchVideos(request);
   const playlistsPromise = searchPlaylists(request);
-  const [videos, playlists] = await Promise.all([
+  const channelsPromise = searchChannels(request);
+  const [videos, playlists, channels] = await Promise.all([
     videosPromise,
     playlistsPromise,
+    channelsPromise,
   ]);
   return {
     videos,
     playlists,
+    channels,
   };
 }
 
 application.onSearchAll = searchAll;
 application.onSearchVideos = searchVideos;
 application.onSearchPlaylists = searchPlaylists;
+application.onSearchChannels = searchChannels;
+application.onGetChannelVideos = getChannelVideos;
 application.onGetPlaylistVideos = getPlaylistVideos;
 
 const init = () => {
