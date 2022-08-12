@@ -1,11 +1,22 @@
 import axios from "axios";
 import { parse, toSeconds } from "iso8601-duration";
-import { CLIENT_ID, TOKEN_SERVER } from "./shared";
+import {
+  CLIENT_ID,
+  MessageType,
+  TOKEN_SERVER,
+  TOKEN_URL,
+  UiMessageType,
+} from "./shared";
 import "videogata-plugin-typings";
 
 const http = axios.create();
 
 const key = "AIzaSyB3nKWm5VUqMMAaFhC3QCH_0VJU84Oyq48";
+
+const getApiKey = () => {
+  const apiKey = localStorage.getItem("apiKey");
+  return apiKey || key;
+};
 
 const setTokens = (accessToken: string, refreshToken?: string) => {
   localStorage.setItem("access_token", accessToken);
@@ -18,15 +29,26 @@ const refreshToken = async () => {
   const refreshToken = localStorage.getItem("refresh_token");
   if (!refreshToken) return;
 
+  const clientId = localStorage.getItem("clientId");
+  const clientSecret = localStorage.getItem("clientSecret");
+  let tokenUrl = TOKEN_SERVER;
+
   const params = new URLSearchParams();
-  params.append("client_id", CLIENT_ID);
+  params.append("client_id", clientId || CLIENT_ID);
   params.append("refresh_token", refreshToken);
   params.append("grant_type", "refresh_token");
-  const result = await axios.post(TOKEN_SERVER, params, {
+
+  if (clientId && clientSecret) {
+    params.append("client_secret", clientSecret);
+    tokenUrl = TOKEN_URL;
+  }
+
+  const result = await axios.post(tokenUrl, params, {
     headers: {
       "Content-Type": "application/x-www-form-urlencoded",
     },
   });
+
   if (result.data.access_token) {
     setTokens(result.data.access_token);
     return result.data.access_token as string;
@@ -61,77 +83,108 @@ http.interceptors.response.use(
   }
 );
 
-// const sendOrigin = async () => {
-//   const host = document.location.host;
-//   const hostArray = host.split(".");
-//   hostArray.shift();
-//   const domain = hostArray.join(".");
-//   const origin = `${document.location.protocol}//${domain}`;
-//   const pluginId = await application.getPluginId();
-//   application.postUiMessage({
-//     type: "origin",
-//     origin: origin,
-//     pluginId: pluginId,
-//   });
-// };
+const sendMessage = (message: MessageType) => {
+  application.postUiMessage(message);
+};
 
-// application.onUiMessage = async (message: any) => {
-//   switch (message.type) {
-//     case "check-login":
-//       const accessToken = localStorage.getItem("access_token");
-//       if (accessToken) {
-//         application.postUiMessage({ type: "login", accessToken: accessToken });
-//       }
-//       await sendOrigin();
-//       break;
-//     case "login":
-//       setTokens(message.accessToken, message.refreshToken);
-//       application.onGetUserPlaylists = getUserPlaylists;
-//       break;
-//     case "logout":
-//       localStorage.removeItem("access_token");
-//       localStorage.removeItem("refresh_token");
-//       application.onGetUserPlaylists = undefined;
-//       break;
-//   }
-// };
-//
-// function playlistResultToPlaylist(
-//   result: GoogleAppsScript.YouTube.Schema.PlaylistListResponse
-// ): PlaylistInfo[] {
-//   const items = result.items || [];
-//   return items.map((r) => ({
-//     apiId: r.id,
-//     name: r.snippet?.title || "",
-//     images: [
-//       {
-//         width: r.snippet?.thumbnails?.default?.width || 0,
-//         url: r.snippet?.thumbnails?.default?.url || "",
-//         height: r.snippet?.thumbnails?.default?.height || 0,
-//       },
-//     ],
-//     isUserPlaylist: true,
-//   }));
-// }
-//
-// function playlistSearchResultToPlaylist(
-//   result: GoogleAppsScript.YouTube.Schema.SearchListResponse
-// ): PlaylistInfo[] {
-//   const items = result.items || [];
-//   return items.map((r) => ({
-//     apiId: r.id?.playlistId,
-//     name: r.snippet?.title || "",
-//     images: [
-//       {
-//         width: r.snippet?.thumbnails?.default?.width || 0,
-//         url: r.snippet?.thumbnails?.default?.url || "",
-//         height: r.snippet?.thumbnails?.default?.height || 0,
-//       },
-//     ],
-//   }));
-// }
-//
-function resultToSongYoutube(
+const getUsePlayer = () => {
+  const usePlayerString = localStorage.getItem("usePlayer");
+  return !usePlayerString || usePlayerString === "true";
+};
+
+const sendInfo = async () => {
+  const host = document.location.host;
+  const hostArray = host.split(".");
+  hostArray.shift();
+  const domain = hostArray.join(".");
+  const origin = `${document.location.protocol}//${domain}`;
+  const pluginId = await application.getPluginId();
+  const apiKey = localStorage.getItem("apiKey") ?? "";
+  const clientId = localStorage.getItem("clientId") ?? "";
+  const clientSecret = localStorage.getItem("clientSecret") ?? "";
+  const usePlayer = getUsePlayer();
+  sendMessage({
+    type: "info",
+    origin: origin,
+    pluginId: pluginId,
+    apiKey,
+    clientId,
+    clientSecret,
+    usePlayer,
+  });
+};
+
+application.onUiMessage = async (message: UiMessageType) => {
+  switch (message.type) {
+    case "check-login":
+      const accessToken = localStorage.getItem("access_token");
+      if (accessToken) {
+        sendMessage({ type: "login", accessToken: accessToken });
+      }
+      await sendInfo();
+      break;
+    case "login":
+      setTokens(message.accessToken, message.refreshToken);
+      application.onGetUserPlaylists = getUserPlaylists;
+      break;
+    case "logout":
+      localStorage.removeItem("access_token");
+      localStorage.removeItem("refresh_token");
+      application.onGetUserPlaylists = undefined;
+      break;
+    case "set-keys":
+      localStorage.setItem("apiKey", message.apiKey);
+      localStorage.setItem("clientId", message.clientId);
+      localStorage.setItem("clientSecret", message.clientSecret);
+      application.createNotification({ message: "Api keys Saved!" });
+      break;
+    case "useplayer":
+      localStorage.setItem("usePlayer", String(message.usePlayer));
+      if (message.usePlayer) {
+        application.onGetVideoFromApiId = undefined;
+      } else {
+        application.onGetVideoFromApiId = getYoutubeVideoFromApiId;
+      }
+      break;
+  }
+};
+
+function playlistResultToPlaylist(
+  result: GoogleAppsScript.YouTube.Schema.PlaylistListResponse
+): PlaylistInfo[] {
+  const items = result.items || [];
+  return items.map((r) => ({
+    apiId: r.id,
+    name: r.snippet?.title || "",
+    images: [
+      {
+        width: r.snippet?.thumbnails?.default?.width || 0,
+        url: r.snippet?.thumbnails?.default?.url || "",
+        height: r.snippet?.thumbnails?.default?.height || 0,
+      },
+    ],
+    isUserPlaylist: true,
+  }));
+}
+
+function playlistSearchResultToPlaylist(
+  result: GoogleAppsScript.YouTube.Schema.SearchListResponse
+): PlaylistInfo[] {
+  const items = result.items || [];
+  return items.map((r) => ({
+    apiId: r.id?.playlistId,
+    name: r.snippet?.title || "",
+    images: [
+      {
+        width: r.snippet?.thumbnails?.default?.width || 0,
+        url: r.snippet?.thumbnails?.default?.url || "",
+        height: r.snippet?.thumbnails?.default?.height || 0,
+      },
+    ],
+  }));
+}
+
+function resultToVideoYoutube(
   result: GoogleAppsScript.YouTube.Schema.VideoListResponse
 ): Video[] {
   const items = result.items || [];
@@ -141,34 +194,34 @@ function resultToSongYoutube(
     title: i.snippet?.title || "",
   }));
 }
-//
-// async function getUserPlaylists(
-//   request: UserPlaylistRequest
-// ): Promise<SearchPlaylistResult> {
-//   const url = "https://www.googleapis.com/youtube/v3/playlists";
-//   const urlWithQuery = `${url}?part=snippet,contentDetails&mine=true&key=${key}`;
-//   const result =
-//     await http.get<GoogleAppsScript.YouTube.Schema.PlaylistListResponse>(
-//       urlWithQuery
-//     );
-//   const playlistResults: SearchPlaylistResult = {
-//     items: playlistResultToPlaylist(result.data),
-//     pageInfo: {
-//       totalResults: result.data.pageInfo?.totalResults || 0,
-//       resultsPerPage: result.data.pageInfo?.resultsPerPage || 0,
-//       offset: request.page ? request.page.offset : 0,
-//       nextPage: result.data.nextPageToken,
-//       prevPage: result.data.prevPageToken,
-//     },
-//   };
-//   return playlistResults;
-// }
-//
+
+async function getUserPlaylists(
+  request: UserPlaylistRequest
+): Promise<SearchPlaylistResult> {
+  const url = "https://www.googleapis.com/youtube/v3/playlists";
+  const urlWithQuery = `${url}?part=snippet,contentDetails&mine=true&key=${getApiKey()}`;
+  const result =
+    await http.get<GoogleAppsScript.YouTube.Schema.PlaylistListResponse>(
+      urlWithQuery
+    );
+  const playlistResults: SearchPlaylistResult = {
+    items: playlistResultToPlaylist(result.data),
+    pageInfo: {
+      totalResults: result.data.pageInfo?.totalResults || 0,
+      resultsPerPage: result.data.pageInfo?.resultsPerPage || 0,
+      offset: request.page ? request.page.offset : 0,
+      nextPage: result.data.nextPageToken,
+      prevPage: result.data.prevPageToken,
+    },
+  };
+  return playlistResults;
+}
+
 async function searchVideos(
   request: SearchRequest
 ): Promise<SearchVideoResult> {
   const url = "https://www.googleapis.com/youtube/v3/search";
-  let urlWithQuery = `${url}?part=id&type=video&maxResults=50&key=${key}&q=${encodeURIComponent(
+  let urlWithQuery = `${url}?part=id&type=video&maxResults=50&key=${getApiKey()}&q=${encodeURIComponent(
     request.query
   )}`;
   if (request.page) {
@@ -187,13 +240,13 @@ async function searchVideos(
     );
   const detailsUrl = "https://www.googleapis.com/youtube/v3/videos";
   const ids = results.data.items?.map((i) => i.id?.videoId).join(",");
-  const detailsUrlWithQuery = `${detailsUrl}?key=${key}&part=snippet,contentDetails&id=${ids}`;
+  const detailsUrlWithQuery = `${detailsUrl}?key=${getApiKey()}&part=snippet,contentDetails&id=${ids}`;
   const detailsResults =
     await axios.get<GoogleAppsScript.YouTube.Schema.VideoListResponse>(
       detailsUrlWithQuery
     );
   const trackResults: SearchVideoResult = {
-    items: resultToSongYoutube(detailsResults.data),
+    items: resultToVideoYoutube(detailsResults.data),
     pageInfo: {
       totalResults: results.data.pageInfo?.totalResults || 0,
       resultsPerPage: results.data.pageInfo?.resultsPerPage || 0,
@@ -204,83 +257,85 @@ async function searchVideos(
   };
   return trackResults;
 }
-//
-// async function searchPlaylists(
-//   request: SearchRequest
-// ): Promise<SearchPlaylistResult> {
-//   const url = "https://www.googleapis.com/youtube/v3/search";
-//   let urlWithQuery = `${url}?part=snippet&type=playlist&maxResults=50&key=${key}&q=${encodeURIComponent(
-//     request.query
-//   )}`;
-//   if (request.page) {
-//     if (request.page.nextPage) {
-//       // Next Page
-//       urlWithQuery += `&pageToken=${request.page.nextPage}`;
-//     } else if (request.page.prevPage) {
-//       // Prev P1ge
-//       urlWithQuery += `&pageToken=${request.page.prevPage}`;
-//     }
-//   }
-//   const results =
-//     await axios.get<GoogleAppsScript.YouTube.Schema.SearchListResponse>(
-//       urlWithQuery
-//     );
-//   const playlistResults: SearchPlaylistResult = {
-//     items: playlistSearchResultToPlaylist(results.data),
-//     pageInfo: {
-//       totalResults: results.data.pageInfo?.totalResults || 0,
-//       resultsPerPage: results.data.pageInfo?.resultsPerPage || 0,
-//       offset: request.page ? request.page.offset : 0,
-//       nextPage: results.data.nextPageToken,
-//       prevPage: results.data.prevPageToken,
-//     },
-//   };
-//   return playlistResults;
-// }
-//
-// async function getPlaylistTracks(
-//   request: PlaylistTrackRequest
-// ): Promise<SearchTrackResult> {
-//   const url = `https://www.googleapis.com/youtube/v3/playlistItems`;
-//   let urlWithQuery = `${url}?part=contentDetails&maxResults=50&key=${key}&playlistId=${request.playlist.apiId}`;
-//   if (request.playlist.isUserPlaylist) {
-//     urlWithQuery += "&mine=true";
-//   }
-//   if (request.page) {
-//     if (request.page.nextPage) {
-//       // Next Page
-//       urlWithQuery += `&pageToken=${request.page.nextPage}`;
-//     } else if (request.page.prevPage) {
-//       // Prev P1ge
-//       urlWithQuery += `&pageToken=${request.page.prevPage}`;
-//     }
-//   }
-//   const instance = request.playlist.isUserPlaylist ? http : axios;
-//   const result =
-//     await instance.get<GoogleAppsScript.YouTube.Schema.PlaylistItemListResponse>(
-//       urlWithQuery
-//     );
-//   const detailsUrl = "https://www.googleapis.com/youtube/v3/videos";
-//   const ids = result.data.items
-//     ?.map((i) => i.contentDetails?.videoId)
-//     .join(",");
-//   const detailsUrlWithQuery = `${detailsUrl}?key=${key}&part=snippet,contentDetails&id=${ids}`;
-//   const detailsResults =
-//     await axios.get<GoogleAppsScript.YouTube.Schema.VideoListResponse>(
-//       detailsUrlWithQuery
-//     );
-//   const trackResults: SearchTrackResult = {
-//     items: resultToSongYoutube(detailsResults.data),
-//     pageInfo: {
-//       totalResults: result.data.pageInfo?.totalResults || 0,
-//       resultsPerPage: result.data.pageInfo?.resultsPerPage || 0,
-//       offset: request.page ? request.page.offset : 0,
-//       nextPage: result.data.nextPageToken,
-//       prevPage: result.data.prevPageToken,
-//     },
-//   };
-//   return trackResults;
-// }
+
+async function searchPlaylists(
+  request: SearchRequest
+): Promise<SearchPlaylistResult> {
+  const url = "https://www.googleapis.com/youtube/v3/search";
+  let urlWithQuery = `${url}?part=snippet&type=playlist&maxResults=50&key=${getApiKey()}&q=${encodeURIComponent(
+    request.query
+  )}`;
+  if (request.page) {
+    if (request.page.nextPage) {
+      // Next Page
+      urlWithQuery += `&pageToken=${request.page.nextPage}`;
+    } else if (request.page.prevPage) {
+      // Prev P1ge
+      urlWithQuery += `&pageToken=${request.page.prevPage}`;
+    }
+  }
+  const results =
+    await axios.get<GoogleAppsScript.YouTube.Schema.SearchListResponse>(
+      urlWithQuery
+    );
+  const playlistResults: SearchPlaylistResult = {
+    items: playlistSearchResultToPlaylist(results.data),
+    pageInfo: {
+      totalResults: results.data.pageInfo?.totalResults || 0,
+      resultsPerPage: results.data.pageInfo?.resultsPerPage || 0,
+      offset: request.page ? request.page.offset : 0,
+      nextPage: results.data.nextPageToken,
+      prevPage: results.data.prevPageToken,
+    },
+  };
+  return playlistResults;
+}
+
+async function getPlaylistVideos(
+  request: PlaylistVideoRequest
+): Promise<SearchVideoResult> {
+  const url = `https://www.googleapis.com/youtube/v3/playlistItems`;
+  let urlWithQuery = `${url}?part=contentDetails&maxResults=50&key=${getApiKey()}&playlistId=${
+    request.apiId
+  }`;
+  if (request.isUserPlaylist) {
+    urlWithQuery += "&mine=true";
+  }
+  if (request.page) {
+    if (request.page.nextPage) {
+      // Next Page
+      urlWithQuery += `&pageToken=${request.page.nextPage}`;
+    } else if (request.page.prevPage) {
+      // Prev P1ge
+      urlWithQuery += `&pageToken=${request.page.prevPage}`;
+    }
+  }
+  const instance = request.isUserPlaylist ? http : axios;
+  const result =
+    await instance.get<GoogleAppsScript.YouTube.Schema.PlaylistItemListResponse>(
+      urlWithQuery
+    );
+  const detailsUrl = "https://www.googleapis.com/youtube/v3/videos";
+  const ids = result.data.items
+    ?.map((i) => i.contentDetails?.videoId)
+    .join(",");
+  const detailsUrlWithQuery = `${detailsUrl}?key=${getApiKey()}&part=snippet,contentDetails&id=${ids}`;
+  const detailsResults =
+    await axios.get<GoogleAppsScript.YouTube.Schema.VideoListResponse>(
+      detailsUrlWithQuery
+    );
+  const trackResults: SearchVideoResult = {
+    items: resultToVideoYoutube(detailsResults.data),
+    pageInfo: {
+      totalResults: result.data.pageInfo?.totalResults || 0,
+      resultsPerPage: result.data.pageInfo?.resultsPerPage || 0,
+      offset: request.page ? request.page.offset : 0,
+      nextPage: result.data.nextPageToken,
+      prevPage: result.data.prevPageToken,
+    },
+  };
+  return trackResults;
+}
 
 interface PipedApiResponse {
   videoStreams: PipedApiVideoStream[];
@@ -294,17 +349,6 @@ interface PipedApiVideoStream {
   format: string;
   url: string;
   bitrate: number;
-}
-
-function formatToType(format: string) {
-  switch (format) {
-    case "MPEG_4":
-      return "video/mp4";
-    case "WEBM":
-      return "video/webm";
-    default:
-      return "";
-  }
 }
 
 async function getYoutubeVideoFromApiId(apiId: string): Promise<Video> {
@@ -325,57 +369,32 @@ async function getYoutubeVideoFromApiId(apiId: string): Promise<Video> {
 }
 
 async function searchAll(request: SearchRequest): Promise<SearchAllResult> {
-  const videos = await searchVideos(request);
-  //const playlistsPromise = searchPlaylists(request);
-  //const [tracks, playlists] = await Promise.all([
-  //  tracksPromise,
-  //  playlistsPromise,
-  //]);
+  const videosPromise = searchVideos(request);
+  const playlistsPromise = searchPlaylists(request);
+  const [videos, playlists] = await Promise.all([
+    videosPromise,
+    playlistsPromise,
+  ]);
   return {
     videos,
+    playlists,
   };
 }
 
-//async function getTopItems(): Promise<SearchAllResult> {
-//  const url = "https://www.googleapis.com/youtube/v3/videos";
-//  const urlWithQuery = `${url}?key=${key}&videoCategoryId=10&chart=mostPopular&part=snippet,contentDetails`;
-//  const detailsResults =
-//    await axios.get<GoogleAppsScript.YouTube.Schema.VideoListResponse>(
-//      urlWithQuery
-//    );
-//  const trackResults: SearchTrackResult = {
-//    items: resultToSongYoutube(detailsResults.data),
-//  };
-//  return {
-//    tracks: trackResults,
-//  };
-//}
-//
-
 application.onSearchAll = searchAll;
 application.onSearchVideos = searchVideos;
-application.onGetVideoFromApiId = getYoutubeVideoFromApiId;
-//
-//application.onSearchAll = searchAll;
-//application.onSearchTracks = searchTracks;
-//application.onSearchPlaylists = searchPlaylists;
-//application.onGetTrackUrl = getTrackUrl;
-//application.onGetPlaylistTracks = getPlaylistTracks;
-//application.onGetTopItems = getTopItems;
-//
-//application.onDeepLinkMessage = async (message: string) => {
-//  application.postUiMessage({ type: "deeplink", url: message });
-//};
-//
-//window.fetch = function () {
-//  return application.networkRequest.apply(this, arguments as any);
-//};
-//
-//const init = () => {
-//  const accessToken = localStorage.getItem("access_token");
-//  if (accessToken) {
-//    application.onGetUserPlaylists = getUserPlaylists;
-//  }
-//};
+application.onSearchPlaylists = searchPlaylists;
+application.onGetPlaylistVideos = getPlaylistVideos;
 
-//init();
+const init = () => {
+  const accessToken = localStorage.getItem("access_token");
+  if (accessToken) {
+    application.onGetUserPlaylists = getUserPlaylists;
+  }
+
+  if (!getUsePlayer()) {
+    application.onGetVideoFromApiId = getYoutubeVideoFromApiId;
+  }
+};
+
+init();

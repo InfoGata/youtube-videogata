@@ -1,33 +1,79 @@
-import { Button } from "@mui/material";
-import { FunctionComponent } from "preact";
-import { useState, useEffect } from "preact/hooks";
-import { getAuthUrl, getToken, REDIRECT_PATH } from "./shared";
+import {
+  Accordion,
+  AccordionDetails,
+  AccordionSummary,
+  Box,
+  Button,
+  Checkbox,
+  CssBaseline,
+  FormControlLabel,
+  FormGroup,
+  Grid,
+  IconButton,
+  InputAdornment,
+  Stack,
+  TextField,
+  Typography,
+} from "@mui/material";
+import { useEffect, useState } from "preact/hooks";
+import { FunctionComponent, JSX } from "preact";
+import {
+  getAuthUrl,
+  getToken,
+  MessageType,
+  REDIRECT_PATH,
+  UiMessageType,
+} from "./shared";
+import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
+import { VisibilityOff, Visibility } from "@mui/icons-material";
+
+const sendUiMessage = (message: UiMessageType) => {
+  parent.postMessage(message, "*");
+};
 
 const App: FunctionComponent = () => {
   const [accessToken, setAccessToken] = useState("");
   const [pluginId, setPluginId] = useState("");
   const [redirectUri, setRedirectUri] = useState("");
+  const [showAdvanced, setShowAdvanced] = useState(false);
+  const [useOwnKeys, setUseOwnKeys] = useState(false);
+  const [apiKey, setApiKey] = useState("");
+  const [clientId, setClientId] = useState("");
+  const [clientSecret, setClientSecret] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const [usePlayer, setUsePlayer] = useState(true);
 
   useEffect(() => {
-    const onNewWindowMessage = (event: MessageEvent) => {
+    const onNewWindowMessage = (event: MessageEvent<MessageType>) => {
       switch (event.data.type) {
         case "login":
           if (event.data.accessToken) {
             setAccessToken(event.data.accessToken);
           }
-        case "origin":
+          break;
+        case "info":
           setRedirectUri(event.data.origin + REDIRECT_PATH);
           setPluginId(event.data.pluginId);
+          setApiKey(event.data.clientId);
+          setClientId(event.data.clientId);
+          setClientSecret(event.data.clientSecret);
+          setUsePlayer(event.data.usePlayer);
+          if (event.data.clientId) {
+            setShowAdvanced(true);
+            setUseOwnKeys(true);
+          }
           break;
       }
     };
-    parent.postMessage({ type: "check-login" }, "*");
     window.addEventListener("message", onNewWindowMessage);
+    sendUiMessage({ type: "check-login" });
     return () => window.removeEventListener("message", onNewWindowMessage);
   }, []);
 
   const onLogin = () => {
-    const url = getAuthUrl(redirectUri, pluginId);
+    const url = useOwnKeys
+      ? getAuthUrl(redirectUri, pluginId, clientId)
+      : getAuthUrl(redirectUri, pluginId);
     const newWindow = window.open(url);
 
     const onMessage = async (returnUrl: string) => {
@@ -35,16 +81,12 @@ const App: FunctionComponent = () => {
       const code = url.searchParams.get("code");
       if (code) {
         const response = await getToken(code, redirectUri);
-        console.log(response);
         if (response.access_token) {
-          parent.postMessage(
-            {
-              type: "login",
-              accessToken: response.access_token,
-              refreshToken: response.refresh_token,
-            },
-            "*"
-          );
+          sendUiMessage({
+            type: "login",
+            accessToken: response.access_token,
+            refreshToken: response.refresh_token,
+          });
           setAccessToken(response.access_token);
         }
       }
@@ -66,25 +108,154 @@ const App: FunctionComponent = () => {
 
   const onLogout = () => {
     setAccessToken("");
-    parent.postMessage({ type: "logout" }, "*");
+    sendUiMessage({ type: "logout" });
+  };
+
+  const onSaveKeys = () => {
+    setUseOwnKeys(!!clientId);
+    sendUiMessage({
+      type: "set-keys",
+      clientId: clientId,
+      clientSecret: clientSecret,
+      apiKey: apiKey,
+    });
+  };
+
+  const onClearKeys = () => {
+    setApiKey("");
+    setClientId("");
+    setClientSecret("");
+    setUseOwnKeys(false);
+    sendUiMessage({
+      type: "set-keys",
+      clientId: "",
+      clientSecret: "",
+      apiKey: "",
+    });
+  };
+
+  const onAccordionChange = (_: any, expanded: boolean) => {
+    setShowAdvanced(expanded);
+  };
+
+  const handleClickShowPassword = () => {
+    setShowPassword(!showPassword);
+  };
+
+  const handleMouseDownPassword = (event: JSX.TargetedEvent) => {
+    event.preventDefault();
   };
 
   return (
-    <>
-      {accessToken ? (
-        <div>
-          <Button variant="contained" onClick={onLogout}>
-            Logout
-          </Button>
-        </div>
-      ) : (
-        <div>
-          <Button variant="contained" onClick={onLogin}>
-            Login
-          </Button>
-        </div>
-      )}
-    </>
+    <Box
+      sx={{ display: "flex", "& .MuiTextField-root": { m: 1, width: "25ch" } }}
+    >
+      <CssBaseline />
+      <Stack spacing={2}>
+        {accessToken ? (
+          <div>
+            <Button variant="contained" onClick={onLogout}>
+              Logout
+            </Button>
+          </div>
+        ) : (
+          <div>
+            <Button variant="contained" onClick={onLogin}>
+              Login
+            </Button>
+            {useOwnKeys && (
+              <Typography>
+                Using keys set in the Advanced Configuration
+              </Typography>
+            )}
+            <Accordion expanded={showAdvanced} onChange={onAccordionChange}>
+              <AccordionSummary
+                expandIcon={<ExpandMoreIcon />}
+                aria-controls="panel1d-content"
+                id="panel1d-header"
+              >
+                <Typography>Advanced Configuration</Typography>
+              </AccordionSummary>
+              <AccordionDetails>
+                <Typography>Supplying your own keys:</Typography>
+                <Typography>
+                  {redirectUri} needs be added to Authorized Javascript URIs
+                </Typography>
+                <div>
+                  <TextField
+                    label="Api Key"
+                    value={apiKey}
+                    onChange={(e) => {
+                      const value = e.currentTarget.value;
+                      setApiKey(value);
+                    }}
+                  />
+                  <TextField
+                    label="Client ID"
+                    value={clientId}
+                    onChange={(e) => {
+                      const value = e.currentTarget.value;
+                      setClientId(value);
+                    }}
+                  />
+                  <TextField
+                    type={showPassword ? "text" : "password"}
+                    label="Client Secret"
+                    value={clientSecret}
+                    onChange={(e) => {
+                      const value = e.currentTarget.value;
+                      setClientSecret(value);
+                    }}
+                    InputProps={{
+                      endAdornment: (
+                        <InputAdornment position="end">
+                          <IconButton
+                            aria-label="toggle password visibility"
+                            onClick={handleClickShowPassword}
+                            onMouseDown={handleMouseDownPassword}
+                            edge="end"
+                          >
+                            {showPassword ? <VisibilityOff /> : <Visibility />}
+                          </IconButton>
+                        </InputAdornment>
+                      ),
+                    }}
+                  />
+                </div>
+                <Stack spacing={2} direction="row">
+                  <Button variant="contained" onClick={onSaveKeys}>
+                    Save
+                  </Button>
+                  <Button
+                    variant="contained"
+                    onClick={onClearKeys}
+                    color="error"
+                  >
+                    Clear
+                  </Button>
+                </Stack>
+              </AccordionDetails>
+            </Accordion>
+          </div>
+        )}
+        <FormGroup>
+          <FormControlLabel
+            control={
+              <Checkbox
+                checked={usePlayer}
+                onChange={(e) => {
+                  const checked = e.currentTarget.checked;
+                  setUsePlayer(checked);
+                  sendUiMessage({ type: "useplayer", usePlayer: checked });
+                }}
+                inputProps={{ "aria-label": "controlled" }}
+              />
+            }
+            label="Use Youtube Player"
+          ></FormControlLabel>
+        </FormGroup>
+      </Stack>
+    </Box>
   );
 };
 
