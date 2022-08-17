@@ -209,6 +209,15 @@ function resultToVideoYoutube(
   return items.map((i) => ({
     apiId: i.id,
     duration: toSeconds(parse(i.contentDetails?.duration || "0")),
+    images:
+      i.snippet?.thumbnails &&
+      Object.values(i.snippet?.thumbnails).map(
+        (v: GoogleAppsScript.YouTube.Schema.Thumbnail) => ({
+          url: v.url || "",
+          height: v.height || 0,
+          width: v.width || 0,
+        })
+      ),
     title: i.snippet?.title || "",
   }));
 }
