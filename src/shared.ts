@@ -29,13 +29,17 @@ type UiUsePlayerType = {
   type: "useplayer";
   usePlayer: boolean;
 };
+type UiEndVideoType = {
+  type: "endvideo";
+};
 
 export type UiMessageType =
   | UiCheckLoginType
   | UiLoginType
   | UiLogoutType
   | UiSetKeysType
-  | UiUsePlayerType;
+  | UiUsePlayerType
+  | UiEndVideoType;
 
 type LoginType = {
   type: "login";

@@ -1,3 +1,5 @@
+import { UiMessageType } from "./shared";
+
 let player: YT.Player;
 const loadVideoPlayer = () => {
   (window as any).onYouTubeIframeAPIReady = () => {
@@ -13,6 +15,7 @@ const loadVideoPlayer = () => {
         },
         events: {
           onReady: onPlayerReady,
+          onStateChange: onPlayerStateChange,
         },
       });
     }
@@ -20,6 +23,17 @@ const loadVideoPlayer = () => {
 
   function onPlayerReady(event: YT.PlayerEvent) {
     event.target.playVideo();
+  }
+
+  function sendMessage(message: UiMessageType) {
+    parent.postMessage(message, "*");
+  }
+
+  function onPlayerStateChange(event: YT.OnStateChangeEvent) {
+    if (event.data === YT.PlayerState.ENDED) {
+      console.log("End Track");
+      sendMessage({ type: "endvideo" });
+    }
   }
 };
 

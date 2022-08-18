@@ -146,6 +146,9 @@ application.onUiMessage = async (message: UiMessageType) => {
         application.onGetVideoFromApiId = getYoutubeVideoFromApiId;
       }
       break;
+    case "endvideo":
+      application.endVideo();
+      break;
   }
 };
 
