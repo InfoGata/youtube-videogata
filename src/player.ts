@@ -7,8 +7,8 @@ const loadVideoPlayer = () => {
     const apiId = urlSearchParams.get("apiId");
     if (apiId) {
       player = new YT.Player("player", {
-        height: "390",
-        width: "640",
+        width: "100%",
+        height: "100%",
         videoId: apiId,
         playerVars: {
           playsinline: 1,
