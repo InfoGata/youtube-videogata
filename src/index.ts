@@ -8,6 +8,7 @@ import {
   UiMessageType,
 } from "./shared";
 import "videogata-plugin-typings";
+import { getVideoFromApiIdInvidious } from "./invidious";
 
 const http = axios.create();
 
@@ -87,7 +88,7 @@ const sendMessage = (message: MessageType) => {
   application.postUiMessage(message);
 };
 
-const getUsePlayer = () => {
+const getUsePlayer = async () => {
   const usePlayerString = localStorage.getItem("usePlayer");
   return !usePlayerString || usePlayerString === "true";
 };
@@ -102,7 +103,7 @@ const sendInfo = async () => {
   const apiKey = localStorage.getItem("apiKey") ?? "";
   const clientId = localStorage.getItem("clientId") ?? "";
   const clientSecret = localStorage.getItem("clientSecret") ?? "";
-  const usePlayer = getUsePlayer();
+  const usePlayer = await getUsePlayer();
   sendMessage({
     type: "info",
     origin: origin,
@@ -412,32 +413,8 @@ async function getPlaylistVideos(
   return trackResults;
 }
 
-interface PipedApiResponse {
-  videoStreams: PipedApiVideoStream[];
-  title: string;
-  description: string;
-  duration: number;
-  hls: string;
-}
-
-interface PipedApiVideoStream {
-  format: string;
-  url: string;
-  bitrate: number;
-}
-
 async function getYoutubeVideoFromApiId(apiId: string): Promise<Video> {
-  const url = `https://pipedapi.kavin.rocks/streams/${apiId}`;
-  const response = await axios.get<PipedApiResponse>(url);
-  const data = response.data;
-
-  const video: Video = {
-    title: data.title,
-    apiId: apiId,
-    sources: [{ source: data.hls, type: "application/x-mpegURL" }],
-    duration: data.duration,
-  };
-  return video;
+  return getVideoFromApiIdInvidious(apiId);
 }
 
 async function searchAll(request: SearchRequest): Promise<SearchAllResult> {
@@ -462,15 +439,13 @@ application.onSearchPlaylists = searchPlaylists;
 application.onSearchChannels = searchChannels;
 application.onGetChannelVideos = getChannelVideos;
 application.onGetPlaylistVideos = getPlaylistVideos;
+application.onUsePlayer = getUsePlayer;
+application.onGetVideoFromApiId = getYoutubeVideoFromApiId;
 
 const init = () => {
   const accessToken = localStorage.getItem("access_token");
   if (accessToken) {
     application.onGetUserPlaylists = getUserPlaylists;
-  }
-
-  if (!getUsePlayer()) {
-    application.onGetVideoFromApiId = getYoutubeVideoFromApiId;
   }
 };
 
