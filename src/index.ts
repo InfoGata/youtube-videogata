@@ -439,7 +439,7 @@ application.onSearchPlaylists = searchPlaylists;
 application.onSearchChannels = searchChannels;
 application.onGetChannelVideos = getChannelVideos;
 application.onGetPlaylistVideos = getPlaylistVideos;
-application.onUsePlayer = getUsePlayer;
+//application.onUsePlayer = getUsePlayer;
 application.onGetVideoFromApiId = getYoutubeVideoFromApiId;
 
 const init = () => {

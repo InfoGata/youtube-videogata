@@ -8,7 +8,6 @@ import {
   CssBaseline,
   FormControlLabel,
   FormGroup,
-  Grid,
   IconButton,
   InputAdornment,
   Stack,
@@ -238,7 +237,7 @@ const App: FunctionComponent = () => {
             </Accordion>
           </div>
         )}
-        <FormGroup>
+        {/*<FormGroup>
           <FormControlLabel
             control={
               <Checkbox
@@ -253,7 +252,7 @@ const App: FunctionComponent = () => {
             }
             label="Use Youtube Player"
           ></FormControlLabel>
-        </FormGroup>
+          </FormGroup>*/}
       </Stack>
     </Box>
   );

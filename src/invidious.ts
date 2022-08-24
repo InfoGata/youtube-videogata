@@ -51,7 +51,7 @@ export const getVideoFromApiIdInvidious = async (
     dislikes: data.dislikeCount,
     description: data.description,
     channelName: data.author,
-    channelApiId: data.authorUrl,
+    channelApiId: data.authorUrl.split("/").slice(-1)[0],
   };
 
   return video;
