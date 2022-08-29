@@ -8,7 +8,10 @@ import {
   UiMessageType,
 } from "./shared";
 import "videogata-plugin-typings";
-import { getVideoFromApiIdInvidious } from "./invidious";
+import {
+  getVideoCommentsfromInvidious,
+  getVideoFromApiIdInvidious,
+} from "./invidious";
 
 const http = axios.create();
 
@@ -417,6 +420,12 @@ async function getYoutubeVideoFromApiId(apiId: string): Promise<Video> {
   return getVideoFromApiIdInvidious(apiId);
 }
 
+async function getVideoComments(
+  request: VideoCommentsRequest
+): Promise<VideoCommentsResponse> {
+  return getVideoCommentsfromInvidious(request);
+}
+
 async function searchAll(request: SearchRequest): Promise<SearchAllResult> {
   const videosPromise = searchVideos(request);
   const playlistsPromise = searchPlaylists(request);
@@ -439,6 +448,7 @@ application.onSearchPlaylists = searchPlaylists;
 application.onSearchChannels = searchChannels;
 application.onGetChannelVideos = getChannelVideos;
 application.onGetPlaylistVideos = getPlaylistVideos;
+application.onGetVideoComments = getVideoComments;
 //application.onUsePlayer = getUsePlayer;
 application.onGetVideoFromApiId = getYoutubeVideoFromApiId;
 
