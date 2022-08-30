@@ -30,6 +30,7 @@ interface InvidiousRecommendedVideo {
 }
 
 interface InvidiousComments {
+  commentCount?: number;
   comments: InvidiousComment[];
   continuation: string;
 }
@@ -89,7 +90,10 @@ export const getVideoFromApiIdInvidious = async (
 export const getVideoCommentsfromInvidious = async (
   request: VideoCommentsRequest
 ): Promise<VideoCommentsResult> => {
-  const url = `https://${instance}/api/v1/comments/${request.apiId}`;
+  let url = `https://${instance}/api/v1/comments/${request.apiId}`;
+  if (request.page) {
+    url = `${url}?continuation=${request.page.nextPage}`;
+  }
   const response = await axios.get<InvidiousComments>(url);
   const comments = response.data.comments.map((c) => ({
     apiId: c.commentId,
@@ -97,5 +101,11 @@ export const getVideoCommentsfromInvidious = async (
     author: c.author,
     images: c.authorThumbnails,
   }));
-  return { comments: comments };
+  const page: PageInfo = {
+    totalResults: response.data.commentCount || 0,
+    resultsPerPage: 0,
+    offset: 0,
+    nextPage: response.data.continuation,
+  };
+  return { comments: comments, page };
 };
