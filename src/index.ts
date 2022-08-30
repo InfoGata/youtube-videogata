@@ -426,6 +426,16 @@ async function getVideoComments(
   return getVideoCommentsfromInvidious(request);
 }
 
+async function getCommentReplies(
+  request: CommentReplyRequest
+): Promise<VideoCommentsResult> {
+  const commentRequest: VideoCommentsRequest = {
+    apiId: request.videoApiId,
+    page: request.page,
+  };
+  return getVideoCommentsfromInvidious(commentRequest);
+}
+
 async function searchAll(request: SearchRequest): Promise<SearchAllResult> {
   const videosPromise = searchVideos(request);
   const playlistsPromise = searchPlaylists(request);
@@ -449,6 +459,7 @@ application.onSearchChannels = searchChannels;
 application.onGetChannelVideos = getChannelVideos;
 application.onGetPlaylistVideos = getPlaylistVideos;
 application.onGetVideoComments = getVideoComments;
+application.onGetCommentReplies = getCommentReplies;
 //application.onUsePlayer = getUsePlayer;
 application.onGetVideoFromApiId = getYoutubeVideoFromApiId;
 

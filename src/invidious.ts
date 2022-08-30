@@ -18,6 +18,12 @@ interface InvidiousVideoReponse {
   published: number;
 }
 
+interface InvidiousAdaptiveFormat {
+  bitrate: string;
+  url: string;
+  container: string;
+}
+
 interface InvidiousRecommendedVideo {
   videoId: string;
   title: string;
@@ -44,12 +50,12 @@ interface InvidiousComment {
   likeCount: number;
   commentId: string;
   authorIsChannelOwner: boolean;
+  replies?: InvidiousReplies;
 }
 
-interface InvidiousAdaptiveFormat {
-  bitrate: string;
-  url: string;
-  container: string;
+interface InvidiousReplies {
+  replyCount: number;
+  continuation: string;
 }
 
 export const getVideoFromApiIdInvidious = async (
@@ -95,12 +101,17 @@ export const getVideoCommentsfromInvidious = async (
     url = `${url}?continuation=${request.page.nextPage}`;
   }
   const response = await axios.get<InvidiousComments>(url);
-  const comments = response.data.comments.map((c) => ({
-    apiId: c.commentId,
-    content: c.content,
-    author: c.author,
-    images: c.authorThumbnails,
-  }));
+  const comments = response.data.comments.map(
+    (c): VideoComment => ({
+      apiId: c.commentId,
+      videoCommentId: request.apiId,
+      content: c.content,
+      author: c.author,
+      images: c.authorThumbnails,
+      replyCount: c.replies?.replyCount,
+      replyPage: c.replies?.continuation,
+    })
+  );
   const page: PageInfo = {
     totalResults: response.data.commentCount || 0,
     resultsPerPage: 0,
