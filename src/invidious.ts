@@ -15,6 +15,7 @@ interface InvidiousVideoReponse {
   dashUrl: string;
   recommendedVideos: InvidiousRecommendedVideo[];
   adaptiveFormats: InvidiousAdaptiveFormat[];
+  published: number;
 }
 
 interface InvidiousRecommendedVideo {
@@ -79,6 +80,7 @@ export const getVideoFromApiIdInvidious = async (
       channelName: r.author,
       channelApiId: r.authorId,
     })),
+    uploadDate: new Date(data.published).toISOString(),
   };
 
   return video;
