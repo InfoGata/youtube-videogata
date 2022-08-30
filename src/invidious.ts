@@ -87,7 +87,7 @@ export const getVideoFromApiIdInvidious = async (
       channelName: r.author,
       channelApiId: r.authorId,
     })),
-    uploadDate: new Date(data.published).toISOString(),
+    uploadDate: new Date(data.published * 1000).toISOString(),
   };
 
   return video;
