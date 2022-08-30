@@ -88,7 +88,7 @@ export const getVideoFromApiIdInvidious = async (
 
 export const getVideoCommentsfromInvidious = async (
   request: VideoCommentsRequest
-): Promise<VideoCommentsResponse> => {
+): Promise<VideoCommentsResult> => {
   const url = `https://${instance}/api/v1/comments/${request.apiId}`;
   const response = await axios.get<InvidiousComments>(url);
   const comments = response.data.comments.map((c) => ({

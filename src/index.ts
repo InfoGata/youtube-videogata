@@ -422,7 +422,7 @@ async function getYoutubeVideoFromApiId(apiId: string): Promise<Video> {
 
 async function getVideoComments(
   request: VideoCommentsRequest
-): Promise<VideoCommentsResponse> {
+): Promise<VideoCommentsResult> {
   return getVideoCommentsfromInvidious(request);
 }
 
