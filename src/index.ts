@@ -144,11 +144,6 @@ application.onUiMessage = async (message: UiMessageType) => {
       break;
     case "useplayer":
       localStorage.setItem("usePlayer", String(message.usePlayer));
-      if (message.usePlayer) {
-        application.onGetVideoFromApiId = undefined;
-      } else {
-        application.onGetVideoFromApiId = getYoutubeVideoFromApiId;
-      }
       break;
     case "endvideo":
       application.endVideo();
@@ -160,35 +155,39 @@ function playlistResultToPlaylist(
   result: GoogleAppsScript.YouTube.Schema.PlaylistListResponse
 ): PlaylistInfo[] {
   const items = result.items || [];
-  return items.map((r) => ({
-    apiId: r.id,
-    name: r.snippet?.title || "",
-    images: [
-      {
-        width: r.snippet?.thumbnails?.default?.width || 0,
-        url: r.snippet?.thumbnails?.default?.url || "",
-        height: r.snippet?.thumbnails?.default?.height || 0,
-      },
-    ],
-    isUserPlaylist: true,
-  }));
+  return items.map(
+    (r): PlaylistInfo => ({
+      apiId: r.id,
+      name: r.snippet?.title || "",
+      images: [
+        {
+          width: r.snippet?.thumbnails?.default?.width || 0,
+          url: r.snippet?.thumbnails?.default?.url || "",
+          height: r.snippet?.thumbnails?.default?.height || 0,
+        },
+      ],
+      isUserPlaylist: true,
+    })
+  );
 }
 
 function playlistSearchResultToPlaylist(
   result: GoogleAppsScript.YouTube.Schema.SearchListResponse
 ): PlaylistInfo[] {
   const items = result.items || [];
-  return items.map((r) => ({
-    apiId: r.id?.playlistId,
-    name: r.snippet?.title || "",
-    images: [
-      {
-        width: r.snippet?.thumbnails?.default?.width || 0,
-        url: r.snippet?.thumbnails?.default?.url || "",
-        height: r.snippet?.thumbnails?.default?.height || 0,
-      },
-    ],
-  }));
+  return items.map(
+    (r): PlaylistInfo => ({
+      apiId: r.id?.playlistId,
+      name: r.snippet?.title || "",
+      images: [
+        {
+          width: r.snippet?.thumbnails?.default?.width || 0,
+          url: r.snippet?.thumbnails?.default?.url || "",
+          height: r.snippet?.thumbnails?.default?.height || 0,
+        },
+      ],
+    })
+  );
 }
 
 function channelSearchResultToChannel(
@@ -196,37 +195,41 @@ function channelSearchResultToChannel(
 ): Channel[] {
   const items = result.items || [];
 
-  return items.map((r) => ({
-    apiId: r.id?.channelId,
-    name: r.snippet?.channelTitle || "",
-    images: [
-      {
-        width: r.snippet?.thumbnails?.default?.width || 0,
-        url: r.snippet?.thumbnails?.default?.url || "",
-        height: r.snippet?.thumbnails?.default?.height || 0,
-      },
-    ],
-  }));
+  return items.map(
+    (r): Channel => ({
+      apiId: r.id?.channelId,
+      name: r.snippet?.channelTitle || "",
+      images: [
+        {
+          width: r.snippet?.thumbnails?.default?.width || 0,
+          url: r.snippet?.thumbnails?.default?.url || "",
+          height: r.snippet?.thumbnails?.default?.height || 0,
+        },
+      ],
+    })
+  );
 }
 
 function resultToVideoYoutube(
   result: GoogleAppsScript.YouTube.Schema.VideoListResponse
 ): Video[] {
   const items = result.items || [];
-  return items.map((i) => ({
-    apiId: i.id,
-    duration: toSeconds(parse(i.contentDetails?.duration || "0")),
-    images:
-      i.snippet?.thumbnails &&
-      Object.values(i.snippet?.thumbnails).map(
-        (v: GoogleAppsScript.YouTube.Schema.Thumbnail) => ({
-          url: v.url || "",
-          height: v.height || 0,
-          width: v.width || 0,
-        })
-      ),
-    title: i.snippet?.title || "",
-  }));
+  return items.map(
+    (i): Video => ({
+      apiId: i.id,
+      duration: toSeconds(parse(i.contentDetails?.duration || "0")),
+      images:
+        i.snippet?.thumbnails &&
+        Object.values(i.snippet?.thumbnails).map(
+          (v: GoogleAppsScript.YouTube.Schema.Thumbnail) => ({
+            url: v.url || "",
+            height: v.height || 0,
+            width: v.width || 0,
+          })
+        ),
+      title: i.snippet?.title || "",
+    })
+  );
 }
 
 async function getUserPlaylists(
@@ -416,8 +419,8 @@ async function getPlaylistVideos(
   return trackResults;
 }
 
-async function getYoutubeVideoFromApiId(apiId: string): Promise<Video> {
-  return getVideoFromApiIdInvidious(apiId);
+async function getYoutubeVideo(request: GetVideoRequest): Promise<Video> {
+  return getVideoFromApiIdInvidious(request.apiId);
 }
 
 async function getVideoComments(
@@ -461,7 +464,7 @@ application.onGetPlaylistVideos = getPlaylistVideos;
 application.onGetVideoComments = getVideoComments;
 application.onGetCommentReplies = getCommentReplies;
 //application.onUsePlayer = getUsePlayer;
-application.onGetVideoFromApiId = getYoutubeVideoFromApiId;
+application.onGetVideo = getYoutubeVideo;
 
 const init = () => {
   const accessToken = localStorage.getItem("access_token");
