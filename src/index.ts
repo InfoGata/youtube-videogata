@@ -419,6 +419,21 @@ async function getPlaylistVideos(
   return trackResults;
 }
 
+async function getTopItems(): Promise<SearchAllResult> {
+  const url = "https://www.googleapis.com/youtube/v3/videos";
+  const urlWithQuery = `${url}?key=${getApiKey()}&videoCategoryId=10&chart=mostPopular&part=snippet,contentDetails`;
+  const detailsResults =
+    await axios.get<GoogleAppsScript.YouTube.Schema.VideoListResponse>(
+      urlWithQuery
+    );
+  const videoResults: SearchVideoResult = {
+    items: resultToVideoYoutube(detailsResults.data),
+  };
+  return {
+    videos: videoResults,
+  };
+}
+
 async function getYoutubeVideo(request: GetVideoRequest): Promise<Video> {
   return getVideoFromApiIdInvidious(request.apiId);
 }
@@ -463,6 +478,7 @@ application.onGetChannelVideos = getChannelVideos;
 application.onGetPlaylistVideos = getPlaylistVideos;
 application.onGetVideoComments = getVideoComments;
 application.onGetCommentReplies = getCommentReplies;
+application.onGetTopItems = getTopItems;
 //application.onUsePlayer = getUsePlayer;
 application.onGetVideo = getYoutubeVideo;
 
