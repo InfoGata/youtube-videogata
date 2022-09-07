@@ -32,6 +32,9 @@ type UiUsePlayerType = {
 type UiEndVideoType = {
   type: "endvideo";
 };
+type UiGetInstnaceType = {
+  type: "getinstnace";
+};
 
 export type UiMessageType =
   | UiCheckLoginType
@@ -39,7 +42,8 @@ export type UiMessageType =
   | UiLogoutType
   | UiSetKeysType
   | UiUsePlayerType
-  | UiEndVideoType;
+  | UiEndVideoType
+  | UiGetInstnaceType;
 
 type LoginType = {
   type: "login";
@@ -54,9 +58,20 @@ type InfoType = {
   clientId: string;
   clientSecret: string;
   usePlayer: boolean;
+  instance: string;
 };
 
-export type MessageType = LoginType | InfoType;
+type SendInstance = {
+  type: "sendinstance";
+  instance: string;
+};
+
+export type MessageType = LoginType | InfoType | SendInstance;
+
+export const enum StorageType {
+  Instances = "instances",
+  CurrentInstance = "current-instance",
+}
 
 export interface TokenResponse {
   access_token: string;

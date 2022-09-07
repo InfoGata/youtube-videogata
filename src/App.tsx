@@ -4,10 +4,7 @@ import {
   AccordionSummary,
   Box,
   Button,
-  Checkbox,
   CssBaseline,
-  FormControlLabel,
-  FormGroup,
   IconButton,
   InputAdornment,
   Stack,
@@ -41,6 +38,7 @@ const App: FunctionComponent = () => {
   const [clientSecret, setClientSecret] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [usePlayer, setUsePlayer] = useState(true);
+  const [instance, setInstance] = useState("");
 
   useEffect(() => {
     const onNewWindowMessage = (event: MessageEvent<MessageType>) => {
@@ -57,10 +55,14 @@ const App: FunctionComponent = () => {
           setClientId(event.data.clientId);
           setClientSecret(event.data.clientSecret);
           setUsePlayer(event.data.usePlayer);
+          setInstance(event.data.instance);
           if (event.data.clientId) {
             setShowAdvanced(true);
             setUseOwnKeys(true);
           }
+          break;
+        case "sendinstance":
+          setInstance(event.data.instance);
           break;
       }
     };
@@ -145,10 +147,12 @@ const App: FunctionComponent = () => {
     event.preventDefault();
   };
 
+  const getInstance = () => {
+    sendUiMessage({ type: "getinstnace" });
+  };
+
   return (
-    <Box
-      sx={{ display: "flex", "& .MuiTextField-root": { m: 1, width: "25ch" } }}
-    >
+    <Box sx={{ display: "flex" }}>
       <CssBaseline />
       <Stack spacing={2}>
         {accessToken ? (
@@ -237,6 +241,10 @@ const App: FunctionComponent = () => {
             </Accordion>
           </div>
         )}
+        <Box sx={{ width: "100%" }}>
+          <TextField value={instance} fullWidth disabled />
+        </Box>
+        <Button onClick={getInstance}>Get Different Instance</Button>
         {/*<FormGroup>
           <FormControlLabel
             control={

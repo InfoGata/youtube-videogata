@@ -10,7 +10,10 @@ import {
 import "videogata-plugin-typings";
 import {
   getVideoCommentsfromInvidious,
+  getRandomInstance,
   getVideoFromApiIdInvidious,
+  fetchInstances,
+  getCurrentInstance,
 } from "./invidious";
 
 const http = axios.create();
@@ -107,6 +110,7 @@ const sendInfo = async () => {
   const clientId = localStorage.getItem("clientId") ?? "";
   const clientSecret = localStorage.getItem("clientSecret") ?? "";
   const usePlayer = await getUsePlayer();
+  const instance = await getCurrentInstance();
   sendMessage({
     type: "info",
     origin: origin,
@@ -115,6 +119,7 @@ const sendInfo = async () => {
     clientId,
     clientSecret,
     usePlayer,
+    instance,
   });
 };
 
@@ -147,6 +152,10 @@ application.onUiMessage = async (message: UiMessageType) => {
       break;
     case "endvideo":
       application.endVideo();
+      break;
+    case "getinstnace":
+      const instance = await getRandomInstance();
+      sendMessage({ type: "sendinstance", instance });
       break;
   }
 };
@@ -482,11 +491,12 @@ application.onGetTopItems = getTopItems;
 //application.onUsePlayer = getUsePlayer;
 application.onGetVideo = getYoutubeVideo;
 
-const init = () => {
+const init = async () => {
   const accessToken = localStorage.getItem("access_token");
   if (accessToken) {
     application.onGetUserPlaylists = getUserPlaylists;
   }
+  await fetchInstances();
 };
 
 init();
