@@ -75,6 +75,43 @@ interface InvidiousInstanceData {
   uri: string;
 }
 
+interface InvidiousSearchVideo {
+  title: string;
+  videoId: string;
+  videoThumbnails: ImageInfo[];
+  lengthSeconds: number;
+  viewCount: number;
+  author: string;
+  authorId: string;
+  authorUrl: string;
+  published: number;
+  description: string;
+}
+
+interface InvidiousSearchPlaylist {
+  title: string;
+  playlistId: string;
+  author: string;
+  authorId: string;
+  videos: InvidiousSearchPlaylistVideo[];
+}
+
+interface InvidiousSearchPlaylistVideo {
+  title: string;
+  videoId: string;
+  lengthSeconds: number;
+  videoThumbnails: ImageInfo[];
+}
+
+interface InvidiousSearchChannel {
+  author: string;
+  authorId: string;
+  authorThumbnails: ImageInfo[];
+  subCount: number;
+  videoCount: number;
+  description: string;
+}
+
 export const fetchInstances = async () => {
   const instancesUrl = "https://api.invidious.io/instances.json";
   const response = await axios.get<InvidiousInstance[]>(instancesUrl);
@@ -147,6 +184,159 @@ export const getVideoFromApiIdInvidious = async (
   };
 
   return video;
+};
+
+const invdiousSearchVideoToVideo = (result: InvidiousSearchVideo): Video => {
+  return {
+    title: result.title,
+    apiId: result.videoId,
+    images: result.videoThumbnails,
+    duration: result.lengthSeconds,
+    views: result.viewCount,
+    channelName: result.author,
+    channelApiId: result.authorId,
+    uploadDate: new Date(result.published * 1000).toISOString(),
+  };
+};
+
+export const getTrendingInvidious = async (): Promise<Video[]> => {
+  const instance = await getCurrentInstance();
+  const url = `${instance}/api/v1/trending`;
+  const response = await axios.get<InvidiousSearchVideo[]>(url);
+  const videos = response.data.map(invdiousSearchVideoToVideo);
+
+  return videos;
+};
+
+export const searchVideosInvidious = async (
+  request: SearchRequest
+): Promise<SearchVideoResult> => {
+  const instance = await getCurrentInstance();
+  let url = `${instance}/api/v1/search?q=${request.query}&type=video`;
+  const response = await axios.get<InvidiousSearchVideo[]>(url);
+  const videos = response.data.map(invdiousSearchVideoToVideo);
+
+  const videoResults: SearchVideoResult = {
+    items: videos,
+  };
+  return videoResults;
+};
+
+export const searchPlaylistsInvidious = async (
+  request: SearchRequest
+): Promise<SearchPlaylistResult> => {
+  const instance = await getCurrentInstance();
+  let url = `${instance}/api/v1/search?q=${request.query}&type=playlist`;
+  const response = await axios.get<InvidiousSearchPlaylist[]>(url);
+  const playlists = response.data.map(
+    (d): PlaylistInfo => ({
+      name: d.title,
+      apiId: d.playlistId,
+      images: d.videos.length > 0 ? d.videos[0].videoThumbnails : [],
+    })
+  );
+
+  return {
+    items: playlists,
+  };
+};
+
+export const searchChannelsInvidious = async (request: SearchRequest) => {
+  const instance = await getCurrentInstance();
+  let url = `${instance}/api/v1/search?q=${request.query}&type=channel`;
+  const response = await axios.get<InvidiousSearchChannel[]>(url);
+
+  const channels = response.data.map(
+    (d): Channel => ({
+      name: d.author,
+      apiId: d.authorId,
+      images: d.authorThumbnails,
+    })
+  );
+
+  return {
+    items: channels,
+  };
+};
+
+interface InvidiousChannel {
+  author: string;
+  authorId: string;
+  authorBanners: ImageInfo[];
+  authorThumbnails: ImageInfo[];
+  subCount: number;
+  description: string;
+  latestVideos: InvidiousSearchVideo[];
+}
+
+export const getChannelVideosInvidious = async (
+  request: ChannelVideosRequest
+): Promise<ChannelVideosResult> => {
+  const instance = await getCurrentInstance();
+  const channelUrl = `${instance}/api/v1/channels/${request.apiId}`;
+  const response = await axios.get<InvidiousChannel>(channelUrl);
+  const channelResult = response.data;
+  const channel: Channel = {
+    name: channelResult.author,
+    apiId: channelResult.authorId,
+    images: channelResult.authorThumbnails,
+  };
+
+  const videos = channelResult.latestVideos.map(invdiousSearchVideoToVideo);
+
+  return {
+    channel,
+    items: videos,
+  };
+};
+
+interface InvidiousPlaylist {
+  title: string;
+  playlistId: string;
+  author: string;
+  authorId: string;
+  authorThumbnails: ImageInfo[];
+  description: string;
+  viewCount: string;
+  videos: InvidiousPlaylistVideo[];
+}
+
+interface InvidiousPlaylistVideo {
+  title: string;
+  videoId: string;
+  author: string;
+  authorId: string;
+  lengthSeconds: number;
+  videoThumbnails: ImageInfo[];
+}
+
+export const getPlaylistVideosInvidious = async (
+  request: PlaylistVideoRequest
+): Promise<PlaylistVideosResult> => {
+  const instance = await getCurrentInstance();
+  let url = `${instance}/api/v1/playlists/${request.apiId}`;
+  const response = await axios.get<InvidiousPlaylist>(url);
+  const result = response.data;
+  const playlist: PlaylistInfo = {
+    name: result.title,
+    apiId: result.playlistId,
+    images: result.videos.length > 0 ? result.videos[0].videoThumbnails : [],
+  };
+  const videos = result.videos.map(
+    (v): Video => ({
+      title: v.title,
+      apiId: v.videoId,
+      images: v.videoThumbnails,
+      duration: v.lengthSeconds,
+      channelName: v.author,
+      channelApiId: v.authorId,
+    })
+  );
+
+  return {
+    playlist,
+    items: videos,
+  };
 };
 
 export const getVideoCommentsfromInvidious = async (

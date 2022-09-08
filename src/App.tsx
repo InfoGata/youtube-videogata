@@ -75,9 +75,7 @@ const App: FunctionComponent = () => {
   }, []);
 
   const onLogin = () => {
-    const url = useOwnKeys
-      ? getAuthUrl(redirectUri, pluginId, clientId)
-      : getAuthUrl(redirectUri, pluginId);
+    const url = getAuthUrl(redirectUri, pluginId, clientId);
     const newWindow = window.open(url);
 
     const onMessage = async (returnUrl: string) => {
@@ -166,14 +164,6 @@ const App: FunctionComponent = () => {
           </div>
         ) : (
           <div>
-            <Button variant="contained" onClick={onLogin}>
-              Login
-            </Button>
-            {useOwnKeys && (
-              <Typography>
-                Using keys set in the Advanced Configuration
-              </Typography>
-            )}
             <Accordion expanded={showAdvanced} onChange={onAccordionChange}>
               <AccordionSummary
                 expandIcon={<ExpandMoreIcon />}
@@ -183,6 +173,13 @@ const App: FunctionComponent = () => {
                 <Typography>Advanced Configuration</Typography>
               </AccordionSummary>
               <AccordionDetails>
+                <Button
+                  variant="contained"
+                  onClick={onLogin}
+                  disabled={!useOwnKeys}
+                >
+                  Login
+                </Button>
                 <Typography>Supplying your own keys:</Typography>
                 <Typography>
                   {redirectUri} needs be added to Authorized Javascript URIs

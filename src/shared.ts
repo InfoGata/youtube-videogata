@@ -1,8 +1,4 @@
 import axios from "axios";
-export const CLIENT_ID =
-  "125446267595-noltpkn42520oq1sh4h6cnn41f135n1s.apps.googleusercontent.com";
-export const TOKEN_SERVER =
-  "https://cloudflare-worker-token-service.audio-pwa.workers.dev/token";
 const AUTH_SCOPE = "https://www.googleapis.com/auth/youtube.readonly";
 const AUTH_URL = "https://accounts.google.com/o/oauth2/auth";
 export const TOKEN_URL = "https://oauth2.googleapis.com/token";
@@ -88,7 +84,9 @@ export const getAuthUrl = (
 ) => {
   const state = { pluginId: pluginId };
   const url = new URL(AUTH_URL);
-  url.searchParams.append("client_id", clientId || CLIENT_ID);
+  if (clientId) {
+    url.searchParams.append("client_id", clientId);
+  }
   url.searchParams.append("redirect_uri", redirectUri);
   url.searchParams.append("scope", AUTH_SCOPE);
   url.searchParams.append("response_type", "code");
@@ -105,16 +103,15 @@ export const getToken = async (
   clientId?: string,
   clientSecret?: string
 ) => {
-  let tokenUrl = TOKEN_SERVER;
+  const tokenUrl = TOKEN_URL;
   const params = new URLSearchParams();
-  params.append("client_id", clientId || CLIENT_ID);
   params.append("code", code);
   params.append("redirect_uri", redirectUri);
   params.append("grant_type", "authorization_code");
 
   if (clientId && clientSecret) {
+    params.append("client_id", clientId);
     params.append("client_secret", clientSecret);
-    tokenUrl = TOKEN_URL;
   }
   const result = await axios.post<TokenResponse>(tokenUrl, params, {
     headers: {
