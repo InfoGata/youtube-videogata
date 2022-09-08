@@ -15,6 +15,7 @@ interface InvidiousVideoReponse {
   dashUrl: string;
   recommendedVideos: InvidiousRecommendedVideo[];
   adaptiveFormats: InvidiousAdaptiveFormat[];
+  formatStreams: InvidiousFormatStream[];
   published: number;
 }
 
@@ -22,6 +23,11 @@ interface InvidiousAdaptiveFormat {
   bitrate: string;
   url: string;
   container: string;
+}
+
+interface InvidiousFormatStream {
+  container: string;
+  url: string;
 }
 
 interface InvidiousRecommendedVideo {
@@ -118,9 +124,9 @@ export const getVideoFromApiIdInvidious = async (
   const video: Video = {
     title: data.title,
     apiId: apiId,
-    sources: data.adaptiveFormats
-      .filter((a) => a.container === "mp4")
-      .map((a) => ({ type: "video/mp4", source: a.url })),
+    sources: [
+      { source: `${data.dashUrl}?local=true`, type: "application/dash+xml" },
+    ],
     duration: data.lengthSeconds,
     views: data.viewCount,
     likes: data.likeCount,

@@ -15,6 +15,7 @@ import {
   fetchInstances,
   getCurrentInstance,
 } from "./invidious";
+import { getVideoFromApiIdPiped } from "./piped";
 
 const http = axios.create();
 
@@ -444,7 +445,11 @@ async function getTopItems(): Promise<SearchAllResult> {
 }
 
 async function getYoutubeVideo(request: GetVideoRequest): Promise<Video> {
-  return getVideoFromApiIdInvidious(request.apiId);
+  const usePlayer = await getUsePlayer();
+  const result = usePlayer
+    ? getVideoFromApiIdInvidious(request.apiId)
+    : getVideoFromApiIdPiped(request.apiId);
+  return result;
 }
 
 async function getVideoComments(
@@ -488,7 +493,7 @@ application.onGetPlaylistVideos = getPlaylistVideos;
 application.onGetVideoComments = getVideoComments;
 application.onGetCommentReplies = getCommentReplies;
 application.onGetTopItems = getTopItems;
-//application.onUsePlayer = getUsePlayer;
+application.onUsePlayer = getUsePlayer;
 application.onGetVideo = getYoutubeVideo;
 
 const init = async () => {

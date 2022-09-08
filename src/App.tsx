@@ -4,7 +4,10 @@ import {
   AccordionSummary,
   Box,
   Button,
+  Checkbox,
   CssBaseline,
+  FormControlLabel,
+  FormGroup,
   IconButton,
   InputAdornment,
   Stack,
@@ -245,7 +248,7 @@ const App: FunctionComponent = () => {
           <TextField value={instance} fullWidth disabled />
         </Box>
         <Button onClick={getInstance}>Get Different Instance</Button>
-        {/*<FormGroup>
+        <FormGroup>
           <FormControlLabel
             control={
               <Checkbox
@@ -260,7 +263,7 @@ const App: FunctionComponent = () => {
             }
             label="Use Youtube Player"
           ></FormControlLabel>
-          </FormGroup>*/}
+        </FormGroup>
       </Stack>
     </Box>
   );
