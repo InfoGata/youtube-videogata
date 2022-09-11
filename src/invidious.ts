@@ -355,6 +355,8 @@ export const getVideoCommentsfromInvidious = async (
       content: c.content,
       author: c.author,
       images: c.authorThumbnails,
+      likes: c.likeCount,
+      createdDate: new Date(c.published * 1000).toISOString(),
       replyCount: c.replies?.replyCount,
       replyPage: c.replies?.continuation,
     })
