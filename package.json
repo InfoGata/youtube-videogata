@@ -14,7 +14,7 @@
     "axios": "^0.21.1",
     "iso8601-duration": "^1.3.0",
     "preact": "^10.8.2",
-    "videogata-plugin-typings": "../../../libraries/videogata-plugin-typings"
+    "videogata-plugin-typings": "git@gitlab.com:elijahgreen/videogata-plugin-typings.git"
   },
   "scripts": {
     "build": "parcel build src/index.ts src/options.html src/player.html --dist-dir dist/ --no-source-maps",
