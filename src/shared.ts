@@ -28,7 +28,7 @@ type UiUsePlayerType = {
 type UiEndVideoType = {
   type: "endvideo";
 };
-type UiGetInstnaceType = {
+type UiGetInstanceType = {
   type: "getinstnace";
 };
 
@@ -39,7 +39,7 @@ export type UiMessageType =
   | UiSetKeysType
   | UiUsePlayerType
   | UiEndVideoType
-  | UiGetInstnaceType;
+  | UiGetInstanceType;
 
 type LoginType = {
   type: "login";
