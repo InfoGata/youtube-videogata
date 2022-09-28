@@ -291,20 +291,39 @@ export const getChannelVideosInvidious = async (
   request: ChannelVideosRequest
 ): Promise<ChannelVideosResult> => {
   const instance = await getCurrentInstance();
-  const channelUrl = `${instance}/api/v1/channels/${request.apiId}`;
-  const response = await axios.get<InvidiousChannel>(channelUrl);
-  const channelResult = response.data;
+  const channelUrl = `${instance}/api/v1/channels/${request.apiId}?field=author,authorId,authorThumbnails`;
+  const detailsResponse = await axios.get<InvidiousChannel>(channelUrl);
+  const channelResult = detailsResponse.data;
   const channel: Channel = {
     name: channelResult.author,
     apiId: channelResult.authorId,
     images: channelResult.authorThumbnails,
   };
-
-  const videos = channelResult.latestVideos.map(invdiousSearchVideoToVideo);
+  let url = `${instance}/api/v1/channels/${request.apiId}/videos`;
+  let page: PageInfo = {
+    resultsPerPage: 20,
+    offset: request.page?.offset || 0,
+  };
+  if (request.page?.nextPage) {
+    url += `?page=${request.page.nextPage}`;
+    const currentPage = parseInt(request.page.nextPage);
+    page.prevPage = (currentPage - 1).toString();
+    page.nextPage = (currentPage + 1).toString();
+  } else if (request.page?.prevPage) {
+    url += `?page=${request.page.prevPage}`;
+    const currentPage = parseInt(request.page.prevPage);
+    page.prevPage = (currentPage - 1).toString();
+    page.nextPage = (currentPage + 1).toString();
+  } else {
+    page.nextPage = "2";
+  }
+  const results = await axios.get<InvidiousSearchVideo[]>(url);
+  const videos = results.data.map(invdiousSearchVideoToVideo);
 
   return {
     channel,
     items: videos,
+    pageInfo: page,
   };
 };
 
