@@ -268,7 +268,7 @@ export const searchChannelsInvidious = async (request: SearchRequest) => {
     (d): Channel => ({
       name: d.author,
       apiId: d.authorId,
-      images: d.authorThumbnails,
+      images: d.authorThumbnails.map((a) => ({ ...a, url: `https:${a.url}` })),
     })
   );
 
@@ -297,7 +297,10 @@ export const getChannelVideosInvidious = async (
   const channel: Channel = {
     name: channelResult.author,
     apiId: channelResult.authorId,
-    images: channelResult.authorThumbnails,
+    images: channelResult.authorThumbnails.map((a) => ({
+      ...a,
+      url: `https:${a.url}`,
+    })),
   };
   let url = `${instance}/api/v1/channels/${request.apiId}/videos`;
   let page: PageInfo = {
@@ -391,7 +394,7 @@ export const getVideoCommentsfromInvidious = async (
       videoCommentId: request.apiId,
       content: c.content,
       author: c.author,
-      images: c.authorThumbnails,
+      images: c.authorThumbnails.map((a) => ({ ...a, url: `https:${a.url}` })),
       likes: c.likeCount,
       createdDate: new Date(c.published * 1000).toISOString(),
       replyCount: c.replies?.replyCount,
