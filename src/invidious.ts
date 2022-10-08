@@ -245,7 +245,26 @@ export const searchPlaylistsInvidious = async (
 ): Promise<SearchPlaylistResult> => {
   const instance = await getCurrentInstance();
   let url = `${instance}/api/v1/search?q=${request.query}&type=playlist`;
+  let page: PageInfo = {
+    resultsPerPage: 20,
+    offset: request.page?.offset || 0,
+  };
+  if (request.page?.nextPage) {
+    url += `&page=${request.page.nextPage}`;
+    const currentPage = parseInt(request.page.nextPage);
+    page.prevPage = (currentPage - 1).toString();
+    page.nextPage = (currentPage + 1).toString();
+  } else if (request.page?.prevPage) {
+    url += `&page=${request.page.prevPage}`;
+    const currentPage = parseInt(request.page.prevPage);
+    page.prevPage = (currentPage - 1).toString();
+    page.nextPage = (currentPage + 1).toString();
+  } else {
+    page.nextPage = "2";
+  }
+
   const response = await axios.get<InvidiousSearchPlaylist[]>(url);
+
   const playlists = response.data.map(
     (d): PlaylistInfo => ({
       name: d.title,
@@ -256,6 +275,7 @@ export const searchPlaylistsInvidious = async (
 
   return {
     items: playlists,
+    pageInfo: page,
   };
 };
 
