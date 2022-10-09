@@ -153,7 +153,7 @@ async function getCommentReplies(
 ): Promise<VideoCommentsResult> {
   const commentRequest: VideoCommentsRequest = {
     apiId: request.videoApiId,
-    page: request.page,
+    pageInfo: request.pageInfo,
   };
   return getVideoCommentsfromInvidious(commentRequest);
 }

@@ -215,16 +215,16 @@ export const searchVideosInvidious = async (
   let url = `${instance}/api/v1/search?q=${request.query}&type=video`;
   let page: PageInfo = {
     resultsPerPage: 20,
-    offset: request.page?.offset || 0,
+    offset: request.pageInfo?.offset || 0,
   };
-  if (request.page?.nextPage) {
-    url += `&page=${request.page.nextPage}`;
-    const currentPage = parseInt(request.page.nextPage);
+  if (request.pageInfo?.nextPage) {
+    url += `&page=${request.pageInfo.nextPage}`;
+    const currentPage = parseInt(request.pageInfo.nextPage);
     page.prevPage = (currentPage - 1).toString();
     page.nextPage = (currentPage + 1).toString();
-  } else if (request.page?.prevPage) {
-    url += `&page=${request.page.prevPage}`;
-    const currentPage = parseInt(request.page.prevPage);
+  } else if (request.pageInfo?.prevPage) {
+    url += `&page=${request.pageInfo.prevPage}`;
+    const currentPage = parseInt(request.pageInfo.prevPage);
     page.prevPage = (currentPage - 1).toString();
     page.nextPage = (currentPage + 1).toString();
   } else {
@@ -247,16 +247,16 @@ export const searchPlaylistsInvidious = async (
   let url = `${instance}/api/v1/search?q=${request.query}&type=playlist`;
   let page: PageInfo = {
     resultsPerPage: 20,
-    offset: request.page?.offset || 0,
+    offset: request.pageInfo?.offset || 0,
   };
-  if (request.page?.nextPage) {
-    url += `&page=${request.page.nextPage}`;
-    const currentPage = parseInt(request.page.nextPage);
+  if (request.pageInfo?.nextPage) {
+    url += `&page=${request.pageInfo.nextPage}`;
+    const currentPage = parseInt(request.pageInfo.nextPage);
     page.prevPage = (currentPage - 1).toString();
     page.nextPage = (currentPage + 1).toString();
-  } else if (request.page?.prevPage) {
-    url += `&page=${request.page.prevPage}`;
-    const currentPage = parseInt(request.page.prevPage);
+  } else if (request.pageInfo?.prevPage) {
+    url += `&page=${request.pageInfo.prevPage}`;
+    const currentPage = parseInt(request.pageInfo.prevPage);
     page.prevPage = (currentPage - 1).toString();
     page.nextPage = (currentPage + 1).toString();
   } else {
@@ -328,16 +328,16 @@ export const getChannelVideosInvidious = async (
   let url = `${instance}/api/v1/channels/${request.apiId}/videos`;
   let page: PageInfo = {
     resultsPerPage: 20,
-    offset: request.page?.offset || 0,
+    offset: request.pageInfo?.offset || 0,
   };
-  if (request.page?.nextPage) {
-    url += `?page=${request.page.nextPage}`;
-    const currentPage = parseInt(request.page.nextPage);
+  if (request.pageInfo?.nextPage) {
+    url += `?page=${request.pageInfo.nextPage}`;
+    const currentPage = parseInt(request.pageInfo.nextPage);
     page.prevPage = (currentPage - 1).toString();
     page.nextPage = (currentPage + 1).toString();
-  } else if (request.page?.prevPage) {
-    url += `?page=${request.page.prevPage}`;
-    const currentPage = parseInt(request.page.prevPage);
+  } else if (request.pageInfo?.prevPage) {
+    url += `?page=${request.pageInfo.prevPage}`;
+    const currentPage = parseInt(request.pageInfo.prevPage);
     page.prevPage = (currentPage - 1).toString();
     page.nextPage = (currentPage + 1).toString();
   } else {
@@ -407,8 +407,8 @@ export const getVideoCommentsfromInvidious = async (
 ): Promise<VideoCommentsResult> => {
   const instance = await getCurrentInstance();
   let url = `${instance}/api/v1/comments/${request.apiId}`;
-  if (request.page) {
-    url = `${url}?continuation=${request.page.nextPage}`;
+  if (request.pageInfo) {
+    url = `${url}?continuation=${request.pageInfo.nextPage}`;
   }
   const response = await axios.get<InvidiousComments>(url);
   const comments = response.data.comments.map(
@@ -433,5 +433,5 @@ export const getVideoCommentsfromInvidious = async (
     offset: 0,
     nextPage: response.data.continuation,
   };
-  return { comments: comments, page };
+  return { comments: comments, pageInfo: page };
 };
