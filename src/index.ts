@@ -1,5 +1,4 @@
 import { MessageType, UiMessageType } from "./shared";
-import "videogata-plugin-typings";
 import {
   getVideoCommentsfromInvidious,
   getRandomInstance,
