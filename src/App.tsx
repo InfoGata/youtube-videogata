@@ -67,6 +67,9 @@ const App: FunctionComponent = () => {
         case "sendinstance":
           setInstance(event.data.instance);
           break;
+        default:
+          const _exhaustive: never = event.data;
+          break;
       }
     };
     window.addEventListener("message", onNewWindowMessage);
