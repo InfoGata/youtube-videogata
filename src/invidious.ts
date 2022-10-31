@@ -230,12 +230,62 @@ export const searchVideosInvidious = async (
   } else {
     page.nextPage = "2";
   }
+  const filters = request.filterInfo?.filters;
+  if (filters) {
+    const filterStrings = filters
+      .filter((f) => !!f.value)
+      .map((f) => `&${f.id}=${f.value}`);
+    url += filterStrings.join("");
+  }
+
   const response = await axios.get<InvidiousSearchVideo[]>(url);
   const videos = response.data.map(invdiousSearchVideoToVideo);
+  const filterInfo: FilterInfo = {
+    filters: [
+      {
+        id: "date",
+        displayName: "Date",
+        type: "radio",
+        value: "",
+        options: [
+          { displayName: "All Time", value: "" },
+          { displayName: "Year", value: "year" },
+          { displayName: "Month", value: "month" },
+          { displayName: "Week", value: "week" },
+          { displayName: "Today", value: "today" },
+          { displayName: "Hour", value: "hour" },
+        ],
+      },
+      {
+        id: "duration",
+        displayName: "Duration",
+        type: "radio",
+        value: "",
+        options: [
+          { displayName: "Any", value: "" },
+          { displayName: "Short", value: "short" },
+          { displayName: "Long", value: "long" },
+        ],
+      },
+      {
+        id: "sort_by",
+        displayName: "Sort By",
+        type: "select",
+        value: "relevance",
+        options: [
+          { displayName: "Relevance", value: "relevance" },
+          { displayName: "Rating", value: "rating" },
+          { displayName: "Upload Date", value: "update_date" },
+          { displayName: "View Count", value: "view_count" },
+        ],
+      },
+    ],
+  };
 
   const videoResults: SearchVideoResult = {
     items: videos,
     pageInfo: page,
+    filterInfo,
   };
   return videoResults;
 };
