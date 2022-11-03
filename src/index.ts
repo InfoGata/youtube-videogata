@@ -1,4 +1,4 @@
-import { MessageType, UiMessageType } from "./shared";
+import { localeStringToLocale, MessageType, UiMessageType } from "./shared";
 import {
   getVideoCommentsfromInvidious,
   getRandomInstance,
@@ -18,6 +18,7 @@ import {
   getUserPlaylistsYoutube,
   setTokens,
 } from "./youtube";
+import { translate } from "preact-i18n";
 
 const sendMessage = (message: MessageType) => {
   application.postUiMessage(message);
@@ -35,6 +36,7 @@ const sendInfo = async () => {
   const domain = hostArray.join(".");
   const origin = `${document.location.protocol}//${domain}`;
   const pluginId = await application.getPluginId();
+  const locale = await application.getLocale();
   const apiKey = localStorage.getItem("apiKey") ?? "";
   const clientId = localStorage.getItem("clientId") ?? "";
   const clientSecret = localStorage.getItem("clientSecret") ?? "";
@@ -49,6 +51,7 @@ const sendInfo = async () => {
     clientSecret,
     usePlayer,
     instance,
+    locale,
   });
 };
 
@@ -74,7 +77,11 @@ application.onUiMessage = async (message: UiMessageType) => {
       localStorage.setItem("apiKey", message.apiKey);
       localStorage.setItem("clientId", message.clientId);
       localStorage.setItem("clientSecret", message.clientSecret);
-      application.createNotification({ message: "Api keys Saved!" });
+
+      const localeString = await application.getLocale();
+      const locale = localeStringToLocale(localeString);
+      const notificationText = translate("apiKeysSaved", "common", locale);
+      application.createNotification({ message: notificationText });
       break;
     case "useplayer":
       localStorage.setItem("usePlayer", String(message.usePlayer));

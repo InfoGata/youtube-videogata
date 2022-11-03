@@ -19,12 +19,15 @@ import { FunctionComponent, JSX } from "preact";
 import {
   getAuthUrl,
   getToken,
+  localeStringToLocale,
   MessageType,
   REDIRECT_PATH,
   UiMessageType,
 } from "./shared";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import { VisibilityOff, Visibility } from "@mui/icons-material";
+import en from "./locales/en.json";
+import { IntlProvider, Text, translate } from "preact-i18n";
 
 const sendUiMessage = (message: UiMessageType) => {
   parent.postMessage(message, "*");
@@ -42,6 +45,7 @@ const App: FunctionComponent = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [usePlayer, setUsePlayer] = useState(true);
   const [instance, setInstance] = useState("");
+  const [locale, setLocale] = useState<{}>(en);
 
   useEffect(() => {
     const onNewWindowMessage = (event: MessageEvent<MessageType>) => {
@@ -59,6 +63,7 @@ const App: FunctionComponent = () => {
           setClientSecret(event.data.clientSecret);
           setUsePlayer(event.data.usePlayer);
           setInstance(event.data.instance);
+          setLocale(localeStringToLocale(event.data.locale));
           if (event.data.clientId) {
             setShowAdvanced(true);
             setUseOwnKeys(true);
@@ -156,116 +161,134 @@ const App: FunctionComponent = () => {
   };
 
   return (
-    <Box sx={{ display: "flex" }}>
-      <CssBaseline />
-      <Stack spacing={2}>
-        {accessToken ? (
-          <div>
-            <Button variant="contained" onClick={onLogout}>
-              Logout
-            </Button>
-          </div>
-        ) : (
-          <div>
-            <Accordion expanded={showAdvanced} onChange={onAccordionChange}>
-              <AccordionSummary
-                expandIcon={<ExpandMoreIcon />}
-                aria-controls="panel1d-content"
-                id="panel1d-header"
-              >
-                <Typography>Advanced Configuration</Typography>
-              </AccordionSummary>
-              <AccordionDetails>
-                <Button
-                  variant="contained"
-                  onClick={onLogin}
-                  disabled={!useOwnKeys}
+    <IntlProvider definition={locale} scope="common">
+      <Box sx={{ display: "flex" }}>
+        <CssBaseline />
+        <Stack spacing={2}>
+          {accessToken ? (
+            <div>
+              <Button variant="contained" onClick={onLogout}>
+                <Text id="logout">{en.common.logout}</Text>
+              </Button>
+            </div>
+          ) : (
+            <div>
+              <Accordion expanded={showAdvanced} onChange={onAccordionChange}>
+                <AccordionSummary
+                  expandIcon={<ExpandMoreIcon />}
+                  aria-controls="panel1d-content"
+                  id="panel1d-header"
                 >
-                  Login
-                </Button>
-                <Typography>Supplying your own keys:</Typography>
-                <Typography>
-                  {redirectUri} needs be added to Authorized Javascript URIs
-                </Typography>
-                <div>
-                  <TextField
-                    label="Api Key"
-                    value={apiKey}
-                    onChange={(e) => {
-                      const value = e.currentTarget.value;
-                      setApiKey(value);
-                    }}
-                  />
-                  <TextField
-                    label="Client ID"
-                    value={clientId}
-                    onChange={(e) => {
-                      const value = e.currentTarget.value;
-                      setClientId(value);
-                    }}
-                  />
-                  <TextField
-                    type={showPassword ? "text" : "password"}
-                    label="Client Secret"
-                    value={clientSecret}
-                    onChange={(e) => {
-                      const value = e.currentTarget.value;
-                      setClientSecret(value);
-                    }}
-                    InputProps={{
-                      endAdornment: (
-                        <InputAdornment position="end">
-                          <IconButton
-                            aria-label="toggle password visibility"
-                            onClick={handleClickShowPassword}
-                            onMouseDown={handleMouseDownPassword}
-                            edge="end"
-                          >
-                            {showPassword ? <VisibilityOff /> : <Visibility />}
-                          </IconButton>
-                        </InputAdornment>
-                      ),
-                    }}
-                  />
-                </div>
-                <Stack spacing={2} direction="row">
-                  <Button variant="contained" onClick={onSaveKeys}>
-                    Save
-                  </Button>
+                  <Typography>
+                    <Text id="advancedConfiguration">
+                      {en.common.advancedConfiguration}
+                    </Text>
+                  </Typography>
+                </AccordionSummary>
+                <AccordionDetails>
                   <Button
                     variant="contained"
-                    onClick={onClearKeys}
-                    color="error"
+                    onClick={onLogin}
+                    disabled={!useOwnKeys}
                   >
-                    Clear
+                    <Text id="login">{en.common.login}</Text>
                   </Button>
-                </Stack>
-              </AccordionDetails>
-            </Accordion>
-          </div>
-        )}
-        <Box sx={{ width: "100%" }}>
-          <TextField value={instance} fullWidth disabled />
-        </Box>
-        <Button onClick={getInstance}>Get Different Instance</Button>
-        <FormGroup>
-          <FormControlLabel
-            control={
-              <Checkbox
-                checked={usePlayer}
-                onChange={(e) => {
-                  const checked = e.currentTarget.checked;
-                  setUsePlayer(checked);
-                  sendUiMessage({ type: "useplayer", usePlayer: checked });
-                }}
-                inputProps={{ "aria-label": "controlled" }}
-              />
-            }
-            label="Use Youtube Player"
-          ></FormControlLabel>
-        </FormGroup>
-      </Stack>
-    </Box>
+                  <Typography>
+                    <Text id="supplyOwnKeys">{en.common.supplyOwnKeys}</Text>:
+                  </Typography>
+                  <Typography>
+                    <Text id="addRedirectUri" fields={{ redirectUri }}>
+                      {translate("addRedirectUri", "common", en, {
+                        redirectUri,
+                      })}
+                    </Text>
+                  </Typography>
+                  <div>
+                    <TextField
+                      label="Api Key"
+                      value={apiKey}
+                      onChange={(e) => {
+                        const value = e.currentTarget.value;
+                        setApiKey(value);
+                      }}
+                    />
+                    <TextField
+                      label="Client ID"
+                      value={clientId}
+                      onChange={(e) => {
+                        const value = e.currentTarget.value;
+                        setClientId(value);
+                      }}
+                    />
+                    <TextField
+                      type={showPassword ? "text" : "password"}
+                      label="Client Secret"
+                      value={clientSecret}
+                      onChange={(e) => {
+                        const value = e.currentTarget.value;
+                        setClientSecret(value);
+                      }}
+                      InputProps={{
+                        endAdornment: (
+                          <InputAdornment position="end">
+                            <IconButton
+                              aria-label="toggle password visibility"
+                              onClick={handleClickShowPassword}
+                              onMouseDown={handleMouseDownPassword}
+                              edge="end"
+                            >
+                              {showPassword ? (
+                                <VisibilityOff />
+                              ) : (
+                                <Visibility />
+                              )}
+                            </IconButton>
+                          </InputAdornment>
+                        ),
+                      }}
+                    />
+                  </div>
+                  <Stack spacing={2} direction="row">
+                    <Button variant="contained" onClick={onSaveKeys}>
+                      <Text id="save">{en.common.save}</Text>
+                    </Button>
+                    <Button
+                      variant="contained"
+                      onClick={onClearKeys}
+                      color="error"
+                    >
+                      <Text id="clear">{en.common.clear}</Text>
+                    </Button>
+                  </Stack>
+                </AccordionDetails>
+              </Accordion>
+            </div>
+          )}
+          <Box sx={{ width: "100%" }}>
+            <TextField value={instance} fullWidth disabled />
+          </Box>
+          <Button onClick={getInstance}>Get Different Instance</Button>
+          <FormGroup>
+            <FormControlLabel
+              control={
+                <Checkbox
+                  checked={usePlayer}
+                  onChange={(e) => {
+                    const checked = e.currentTarget.checked;
+                    setUsePlayer(checked);
+                    sendUiMessage({ type: "useplayer", usePlayer: checked });
+                  }}
+                  inputProps={{ "aria-label": "controlled" }}
+                />
+              }
+              label={
+                <Text id="useYoutubePlayer">{en.common.useYoutubePlayer}</Text>
+              }
+            ></FormControlLabel>
+          </FormGroup>
+        </Stack>
+      </Box>
+    </IntlProvider>
   );
 };
 
