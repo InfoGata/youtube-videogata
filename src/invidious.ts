@@ -181,6 +181,7 @@ export const getVideoFromApiIdInvidious = async (
       channelApiId: r.authorId,
     })),
     uploadDate: new Date(data.published * 1000).toISOString(),
+    originalUrl: `https://www.youtube.com/watch?v=${apiId}`,
   };
 
   return video;
