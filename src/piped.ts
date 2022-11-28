@@ -19,7 +19,7 @@ interface PipedApiResponse {
 interface PipedRelatedStream {
   duration: number;
   uploaderName: string;
-  uploaderUrl: string;
+  uploaderUrl?: string;
   thumbnail: string;
   title: string;
   url: string;
@@ -59,7 +59,7 @@ export async function getVideoFromApiIdPiped(apiId: string): Promise<Video> {
         duration: r.duration,
         views: r.views,
         channelName: r.uploaderName,
-        channelApiId: r.uploaderUrl.split("/").slice(-1)[0],
+        channelApiId: r.uploaderUrl?.split("/").slice(-1)[0],
       })
     ),
   };
