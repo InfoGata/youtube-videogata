@@ -9,6 +9,7 @@
     "supplyOwnKeys": "Supplying your own keys",
     "addRedirectUri": "{{redirectUri}} needs be added to 'Authorized Javascript URIs'",
     "apiKeysSaved": "Api Keys saved!",
-    "useYoutubePlayer": "Use Youtube Player"
+    "useYoutubePlayer": "Use Youtube Player",
+    "addVideosByUrl": "Add videos by Url (One Url per line)"
   }
 }

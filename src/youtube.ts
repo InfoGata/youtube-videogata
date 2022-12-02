@@ -2,6 +2,7 @@ import axios from "axios";
 import { parse, toSeconds } from "iso8601-duration";
 import { TOKEN_URL } from "./shared";
 
+const key = "AIzaSyCCwk2lWH7eyv_48Jimp3hBFhR7CFZkWhM";
 const http = axios.create();
 
 export const setTokens = (accessToken: string, refreshToken?: string) => {
@@ -260,6 +261,18 @@ export async function searchPlaylistsYoutube(
   return playlistResults;
 }
 
+export async function getVideosFromVideosIds(ids: string[]) {
+  const idList = ids.join(",");
+  const detailsUrl = "https://www.googleapis.com/youtube/v3/videos";
+  const apiKey = getApiKey() || key;
+  const detailsUrlWithQuery = `${detailsUrl}?key=${apiKey}&part=snippet,contentDetails&id=${idList}`;
+  const detailsResults =
+    await axios.get<GoogleAppsScript.YouTube.Schema.VideoListResponse>(
+      detailsUrlWithQuery
+    );
+  return resultToVideoYoutube(detailsResults.data);
+}
+
 export async function getPlaylistVideosYoutube(
   request: PlaylistVideoRequest
 ): Promise<PlaylistVideosResult> {
@@ -284,17 +297,13 @@ export async function getPlaylistVideosYoutube(
     await instance.get<GoogleAppsScript.YouTube.Schema.PlaylistItemListResponse>(
       urlWithQuery
     );
-  const detailsUrl = "https://www.googleapis.com/youtube/v3/videos";
-  const ids = result.data.items
-    ?.map((i) => i.contentDetails?.videoId)
-    .join(",");
-  const detailsUrlWithQuery = `${detailsUrl}?key=${getApiKey()}&part=snippet,contentDetails&id=${ids}`;
-  const detailsResults =
-    await axios.get<GoogleAppsScript.YouTube.Schema.VideoListResponse>(
-      detailsUrlWithQuery
-    );
+  const ids =
+    result.data.items
+      ?.map((i) => i.contentDetails?.videoId)
+      .filter((i): i is string => !!i) || [];
+  const items = await getVideosFromVideosIds(ids);
   const videoResults: SearchVideoResult = {
-    items: resultToVideoYoutube(detailsResults.data),
+    items: items,
     pageInfo: {
       totalResults: result.data.pageInfo?.totalResults || 0,
       resultsPerPage: result.data.pageInfo?.resultsPerPage || 0,

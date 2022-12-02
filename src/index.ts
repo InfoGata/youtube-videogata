@@ -16,6 +16,7 @@ import { getVideoFromApiIdPiped } from "./piped";
 import {
   getPlaylistVideosYoutube,
   getUserPlaylistsYoutube,
+  getVideosFromVideosIds,
   setTokens,
 } from "./youtube";
 import { translate } from "preact-i18n";
@@ -37,6 +38,7 @@ const sendInfo = async () => {
   const origin = `${document.location.protocol}//${domain}`;
   const pluginId = await application.getPluginId();
   const locale = await application.getLocale();
+  const playlists = await application.getPlaylistsInfo();
   const apiKey = localStorage.getItem("apiKey") ?? "";
   const clientId = localStorage.getItem("clientId") ?? "";
   const clientSecret = localStorage.getItem("clientSecret") ?? "";
@@ -52,7 +54,37 @@ const sendInfo = async () => {
     usePlayer,
     instance,
     locale,
+    playlists,
   });
+};
+
+const resolveUrls = async (urlStrings: string[]) => {
+  const ids: string[] = [];
+  urlStrings.forEach((u) => {
+    try {
+      const url = new URL(u);
+      const videoId = url.searchParams.get("v");
+      if (videoId) {
+        ids.push(videoId);
+      }
+    } catch {}
+  });
+
+  // Max number of ids that youtube api allows is 50
+  const length = ids.length;
+  const limit = 50;
+  let start = 0;
+  let end = limit;
+  const results: Video[] = [];
+  while (start < length) {
+    const idSlice = ids.slice(start, end);
+    const tracks = await getVideosFromVideosIds(idSlice);
+    results.push(...tracks);
+    start += limit;
+    end += limit;
+  }
+
+  return results;
 };
 
 application.onUiMessage = async (message: UiMessageType) => {
@@ -92,6 +124,11 @@ application.onUiMessage = async (message: UiMessageType) => {
     case "getinstnace":
       const instance = await getRandomInstance();
       sendMessage({ type: "sendinstance", instance });
+      break;
+    case "resolve-urls":
+      const videos = await resolveUrls(message.videoUrls.split("\n"));
+      await application.addVideosToPlaylist(message.playlistId, videos);
+      application.createNotification({ message: "Success!" });
       break;
     default:
       const _exhaustive: never = message;

@@ -6,10 +6,14 @@ import {
   Button,
   Checkbox,
   CssBaseline,
+  FormControl,
   FormControlLabel,
   FormGroup,
   IconButton,
   InputAdornment,
+  InputLabel,
+  MenuItem,
+  Select,
   Stack,
   TextField,
   Typography,
@@ -35,6 +39,8 @@ const sendUiMessage = (message: UiMessageType) => {
 
 const App: FunctionComponent = () => {
   const [accessToken, setAccessToken] = useState("");
+  const [playlists, setPlaylists] = useState<PlaylistInfo[]>([]);
+  const [playlistId, setPlaylistId] = useState("");
   const [pluginId, setPluginId] = useState("");
   const [redirectUri, setRedirectUri] = useState("");
   const [showAdvanced, setShowAdvanced] = useState(false);
@@ -46,6 +52,7 @@ const App: FunctionComponent = () => {
   const [usePlayer, setUsePlayer] = useState(true);
   const [instance, setInstance] = useState("");
   const [locale, setLocale] = useState<{}>(en);
+  const [videoUrls, setVideoUrls] = useState("");
 
   useEffect(() => {
     const onNewWindowMessage = (event: MessageEvent<MessageType>) => {
@@ -64,6 +71,7 @@ const App: FunctionComponent = () => {
           setUsePlayer(event.data.usePlayer);
           setInstance(event.data.instance);
           setLocale(localeStringToLocale(event.data.locale));
+          setPlaylists(event.data.playlists);
           if (event.data.clientId) {
             setShowAdvanced(true);
             setUseOwnKeys(true);
@@ -158,6 +166,12 @@ const App: FunctionComponent = () => {
 
   const getInstance = () => {
     sendUiMessage({ type: "getinstnace" });
+  };
+
+  const saveVideoUrl = () => {
+    if (playlistId) {
+      sendUiMessage({ type: "resolve-urls", videoUrls, playlistId });
+    }
   };
 
   return (
@@ -286,6 +300,36 @@ const App: FunctionComponent = () => {
               }
             ></FormControlLabel>
           </FormGroup>
+          <Typography>
+            <Text id="addTracksByUrl">{en.common.addVideosByUrl}</Text>:
+          </Typography>
+          <TextField
+            value={videoUrls}
+            onChange={(e) => {
+              const value = e.currentTarget.value;
+              setVideoUrls(value);
+            }}
+            multiline
+            rows={2}
+          />
+          <FormControl fullWidth>
+            <InputLabel htmlFor="playlist-select">Playlist</InputLabel>
+            <Select
+              labelId="playlist-select"
+              value={playlistId}
+              onChange={(e) => {
+                const v = e.target && "value" in e.target ? e.target.value : "";
+                setPlaylistId(v);
+              }}
+            >
+              {playlists.map((p) => (
+                <MenuItem value={p.id}>{p.name}</MenuItem>
+              ))}
+            </Select>
+          </FormControl>
+          <Button variant="contained" onClick={saveVideoUrl}>
+            <Text id="save">{en.common.save}</Text>
+          </Button>
         </Stack>
       </Box>
     </IntlProvider>

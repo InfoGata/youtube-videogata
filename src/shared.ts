@@ -42,6 +42,11 @@ type UiEndVideoType = {
 type UiGetInstanceType = {
   type: "getinstnace";
 };
+type UiResolveUrls = {
+  type: "resolve-urls";
+  videoUrls: string;
+  playlistId: string;
+};
 
 export type UiMessageType =
   | UiCheckLoginType
@@ -50,7 +55,8 @@ export type UiMessageType =
   | UiSetKeysType
   | UiUsePlayerType
   | UiEndVideoType
-  | UiGetInstanceType;
+  | UiGetInstanceType
+  | UiResolveUrls;
 
 type LoginType = {
   type: "login";
@@ -67,6 +73,7 @@ type InfoType = {
   usePlayer: boolean;
   instance: string;
   locale: string;
+  playlists: PlaylistInfo[];
 };
 
 type SendInstance = {
