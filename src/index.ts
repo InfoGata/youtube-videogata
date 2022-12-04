@@ -58,6 +58,25 @@ const sendInfo = async () => {
   });
 };
 
+const importPlaylist = async (url: string): Promise<Playlist> => {
+  const youtubeUrl = new URL(url);
+  const listId = youtubeUrl.searchParams.get("list");
+  if (listId) {
+    const playlistResponse = await getPlaylistVideos({
+      apiId: listId,
+      isUserPlaylist: false,
+    });
+
+    const playlist: Playlist = {
+      ...playlistResponse.playlist,
+      videos: playlistResponse.items,
+    };
+
+    return playlist;
+  }
+  throw new Error("Couldn't retreive playlist");
+};
+
 const resolveUrls = async (urlStrings: string[]) => {
   const ids: string[] = [];
   urlStrings.forEach((u) => {
@@ -231,6 +250,17 @@ application.onGetCommentReplies = getCommentReplies;
 application.onGetTopItems = getTopItems;
 application.onUsePlayer = getUsePlayer;
 application.onGetVideo = getYoutubeVideo;
+application.onLookupPlaylistUrl = importPlaylist;
+application.onCanParseUrl = async (url: string, type: ParseUrlType) => {
+  if (!/https?:\/\/(www\.)?youtube.com\/watch\?v=.*/.test(url)) return false;
+
+  switch (type) {
+    case "playlist":
+      return new URL(url).searchParams.has("list");
+    default:
+      return false;
+  }
+};
 
 const init = async () => {
   const accessToken = localStorage.getItem("access_token");
