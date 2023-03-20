@@ -1,7 +1,7 @@
 {
   "id": "IIEPnSr5isZy82cdy4ig9",
   "name": "Plugin for Youtube",
-  "version": "1.4.0",
+  "version": "1.4.1",
   "script": "dist/index.js",
   "options": "dist/options.html",
   "player": "dist/player.html",

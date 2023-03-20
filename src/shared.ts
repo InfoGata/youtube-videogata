@@ -139,3 +139,15 @@ export const getToken = async (
   });
   return result.data;
 };
+
+export const getYoutubeVideoUrl = (apiId: string): string => {
+  return `https://www.youtube.com/watch?v=${apiId}`;
+};
+
+export const getYoutubePlaylistUrl = (apiId: string) => {
+  return `https://www.youtube.com/playlist?list=${apiId}`;
+};
+
+export const getYoutubeChannelUrl = (apiId: string) => {
+  return `https://www.youtube.com/channel/${apiId}`;
+};

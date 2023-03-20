@@ -1,6 +1,11 @@
 import axios from "axios";
 import { parse, toSeconds } from "iso8601-duration";
-import { TOKEN_URL } from "./shared";
+import {
+  getYoutubeChannelUrl,
+  getYoutubePlaylistUrl,
+  getYoutubeVideoUrl,
+  TOKEN_URL,
+} from "./shared";
 
 const key = "AIzaSyCCwk2lWH7eyv_48Jimp3hBFhR7CFZkWhM";
 const http = axios.create();
@@ -90,6 +95,7 @@ function playlistResultToPlaylist(
         },
       ],
       isUserPlaylist: true,
+      originalUrl: getYoutubePlaylistUrl(r.id || ""),
     })
   );
 }
@@ -110,6 +116,7 @@ function channelSearchResultToChannel(
           height: r.snippet?.thumbnails?.default?.height || 0,
         },
       ],
+      originalUrl: getYoutubeChannelUrl(r.id?.channelId || ""),
     })
   );
 }
@@ -132,6 +139,7 @@ function resultToVideoYoutube(
           })
         ),
       title: i.snippet?.title || "",
+      originalUrl: getYoutubeVideoUrl(i.id || ""),
     })
   );
 }
@@ -151,6 +159,7 @@ function playlistSearchResultToPlaylist(
           height: r.snippet?.thumbnails?.default?.height || 0,
         },
       ],
+      originalUrl: getYoutubePlaylistUrl(r.id?.playlistId || ""),
     })
   );
 }

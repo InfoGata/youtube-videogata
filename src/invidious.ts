@@ -1,5 +1,10 @@
 import axios from "axios";
-import { StorageType } from "./shared";
+import {
+  getYoutubeChannelUrl,
+  getYoutubePlaylistUrl,
+  getYoutubeVideoUrl,
+  StorageType,
+} from "./shared";
 
 interface InvidiousVideoReponse {
   title: string;
@@ -181,7 +186,7 @@ export const getVideoFromApiIdInvidious = async (
       channelApiId: r.authorId,
     })),
     uploadDate: new Date(data.published * 1000).toISOString(),
-    originalUrl: `https://www.youtube.com/watch?v=${apiId}`,
+    originalUrl: getYoutubeVideoUrl(apiId),
   };
 
   return video;
@@ -197,6 +202,7 @@ const invdiousSearchVideoToVideo = (result: InvidiousSearchVideo): Video => {
     channelName: result.author,
     channelApiId: result.authorId,
     uploadDate: new Date(result.published * 1000).toISOString(),
+    originalUrl: getYoutubeVideoUrl(result.videoId),
   };
 };
 
@@ -321,6 +327,7 @@ export const searchPlaylistsInvidious = async (
       name: d.title,
       apiId: d.playlistId,
       images: d.videos.length > 0 ? d.videos[0].videoThumbnails : [],
+      originalUrl: getYoutubePlaylistUrl(d.playlistId),
     })
   );
 
@@ -343,6 +350,7 @@ export const searchChannelsInvidious = async (request: SearchRequest) => {
         ...a,
         url: a.url.startsWith("http") ? a.url : `https:${a.url}`,
       })),
+      originalUrl: getYoutubeChannelUrl(d.authorId),
     })
   );
 
@@ -375,6 +383,7 @@ export const getChannelVideosInvidious = async (
       ...a,
       url: a.url.startsWith("http") ? a.url : `https:${a.url}`,
     })),
+    originalUrl: getYoutubeChannelUrl(channelResult.authorId),
   };
   let url = `${instance}/api/v1/channels/${request.apiId}/videos`;
   let page: PageInfo = {
@@ -435,6 +444,7 @@ export const getPlaylistVideosInvidious = async (
     name: result.title,
     apiId: result.playlistId,
     images: result.videos.length > 0 ? result.videos[0].videoThumbnails : [],
+    originalUrl: getYoutubePlaylistUrl(result.playlistId),
   };
   const videos = result.videos.map(
     (v): Video => ({
@@ -444,6 +454,7 @@ export const getPlaylistVideosInvidious = async (
       duration: v.lengthSeconds,
       channelName: v.author,
       channelApiId: v.authorId,
+      originalUrl: getYoutubeVideoUrl(v.videoId),
     })
   );
 
