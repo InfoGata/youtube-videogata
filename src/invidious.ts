@@ -155,13 +155,25 @@ export const getCurrentInstance = async (): Promise<string> => {
   return instance;
 };
 
+const sendRequest = async <T>(path: string) => {
+  let instance = await getCurrentInstance();
+  try {
+    const url = `${instance}/${path}`;
+    const request = await axios.get<T>(url);
+    return request;
+  } catch {
+    instance = await getRandomInstance();
+    const url = `${instance}/${path}`;
+    const request = await axios.get<T>(url);
+    return request;
+  }
+};
+
 export const getVideoFromApiIdInvidious = async (
   apiId: string
 ): Promise<Video> => {
-  const instance = await getCurrentInstance();
-  const url = `${instance}/api/v1/videos/${apiId}`;
-
-  const response = await axios.get<InvidiousVideoReponse>(url);
+  const path = `/api/v1/videos/${apiId}`;
+  const response = await sendRequest<InvidiousVideoReponse>(path);
   const data = response.data;
   const video: Video = {
     title: data.title,
@@ -207,9 +219,8 @@ const invdiousSearchVideoToVideo = (result: InvidiousSearchVideo): Video => {
 };
 
 export const getTrendingInvidious = async (): Promise<Video[]> => {
-  const instance = await getCurrentInstance();
-  const url = `${instance}/api/v1/trending`;
-  const response = await axios.get<InvidiousSearchVideo[]>(url);
+  const path = `/api/v1/trending`;
+  const response = await sendRequest<InvidiousSearchVideo[]>(path);
   const videos = response.data.map(invdiousSearchVideoToVideo);
 
   return videos;
@@ -218,19 +229,18 @@ export const getTrendingInvidious = async (): Promise<Video[]> => {
 export const searchVideosInvidious = async (
   request: SearchRequest
 ): Promise<SearchVideoResult> => {
-  const instance = await getCurrentInstance();
-  let url = `${instance}/api/v1/search?q=${request.query}&type=video`;
+  let path = `/api/v1/search?q=${request.query}&type=video`;
   let page: PageInfo = {
     resultsPerPage: 20,
     offset: request.pageInfo?.offset || 0,
   };
   if (request.pageInfo?.nextPage) {
-    url += `&page=${request.pageInfo.nextPage}`;
+    path += `&page=${request.pageInfo.nextPage}`;
     const currentPage = parseInt(request.pageInfo.nextPage);
     page.prevPage = (currentPage - 1).toString();
     page.nextPage = (currentPage + 1).toString();
   } else if (request.pageInfo?.prevPage) {
-    url += `&page=${request.pageInfo.prevPage}`;
+    path += `&page=${request.pageInfo.prevPage}`;
     const currentPage = parseInt(request.pageInfo.prevPage);
     page.prevPage = (currentPage - 1).toString();
     page.nextPage = (currentPage + 1).toString();
@@ -242,10 +252,10 @@ export const searchVideosInvidious = async (
     const filterStrings = filters
       .filter((f) => !!f.value)
       .map((f) => `&${f.id}=${f.value}`);
-    url += filterStrings.join("");
+    path += filterStrings.join("");
   }
 
-  const response = await axios.get<InvidiousSearchVideo[]>(url);
+  const response = await sendRequest<InvidiousSearchVideo[]>(path);
   const videos = response.data.map(invdiousSearchVideoToVideo);
   const filterInfo: FilterInfo = {
     filters: [
@@ -300,19 +310,18 @@ export const searchVideosInvidious = async (
 export const searchPlaylistsInvidious = async (
   request: SearchRequest
 ): Promise<SearchPlaylistResult> => {
-  const instance = await getCurrentInstance();
-  let url = `${instance}/api/v1/search?q=${request.query}&type=playlist`;
+  let path = `/api/v1/search?q=${request.query}&type=playlist`;
   let page: PageInfo = {
     resultsPerPage: 20,
     offset: request.pageInfo?.offset || 0,
   };
   if (request.pageInfo?.nextPage) {
-    url += `&page=${request.pageInfo.nextPage}`;
+    path += `&page=${request.pageInfo.nextPage}`;
     const currentPage = parseInt(request.pageInfo.nextPage);
     page.prevPage = (currentPage - 1).toString();
     page.nextPage = (currentPage + 1).toString();
   } else if (request.pageInfo?.prevPage) {
-    url += `&page=${request.pageInfo.prevPage}`;
+    path += `&page=${request.pageInfo.prevPage}`;
     const currentPage = parseInt(request.pageInfo.prevPage);
     page.prevPage = (currentPage - 1).toString();
     page.nextPage = (currentPage + 1).toString();
@@ -320,7 +329,7 @@ export const searchPlaylistsInvidious = async (
     page.nextPage = "2";
   }
 
-  const response = await axios.get<InvidiousSearchPlaylist[]>(url);
+  const response = await sendRequest<InvidiousSearchPlaylist[]>(path);
 
   const playlists = response.data.map(
     (d): PlaylistInfo => ({
@@ -338,9 +347,8 @@ export const searchPlaylistsInvidious = async (
 };
 
 export const searchChannelsInvidious = async (request: SearchRequest) => {
-  const instance = await getCurrentInstance();
-  let url = `${instance}/api/v1/search?q=${request.query}&type=channel`;
-  const response = await axios.get<InvidiousSearchChannel[]>(url);
+  let path = `/api/v1/search?q=${request.query}&type=channel`;
+  const response = await sendRequest<InvidiousSearchChannel[]>(path);
 
   const channels = response.data.map(
     (d): Channel => ({
@@ -372,9 +380,8 @@ interface InvidiousChannel {
 export const getChannelVideosInvidious = async (
   request: ChannelVideosRequest
 ): Promise<ChannelVideosResult> => {
-  const instance = await getCurrentInstance();
-  const channelUrl = `${instance}/api/v1/channels/${request.apiId}?field=author,authorId,authorThumbnails`;
-  const detailsResponse = await axios.get<InvidiousChannel>(channelUrl);
+  const channelPath = `/api/v1/channels/${request.apiId}?field=author,authorId,authorThumbnails`;
+  const detailsResponse = await sendRequest<InvidiousChannel>(channelPath);
   const channelResult = detailsResponse.data;
   const channel: Channel = {
     name: channelResult.author,
@@ -385,25 +392,25 @@ export const getChannelVideosInvidious = async (
     })),
     originalUrl: getYoutubeChannelUrl(channelResult.authorId),
   };
-  let url = `${instance}/api/v1/channels/${request.apiId}/videos`;
+  let path = `/api/v1/channels/${request.apiId}/videos`;
   let page: PageInfo = {
     resultsPerPage: 20,
     offset: request.pageInfo?.offset || 0,
   };
   if (request.pageInfo?.nextPage) {
-    url += `?page=${request.pageInfo.nextPage}`;
+    path += `?page=${request.pageInfo.nextPage}`;
     const currentPage = parseInt(request.pageInfo.nextPage);
     page.prevPage = (currentPage - 1).toString();
     page.nextPage = (currentPage + 1).toString();
   } else if (request.pageInfo?.prevPage) {
-    url += `?page=${request.pageInfo.prevPage}`;
+    path += `?page=${request.pageInfo.prevPage}`;
     const currentPage = parseInt(request.pageInfo.prevPage);
     page.prevPage = (currentPage - 1).toString();
     page.nextPage = (currentPage + 1).toString();
   } else {
     page.nextPage = "2";
   }
-  const results = await axios.get<InvidiousSearchVideo[]>(url);
+  const results = await sendRequest<InvidiousSearchVideo[]>(path);
   const videos = results.data.map(invdiousSearchVideoToVideo);
 
   return {
@@ -436,9 +443,8 @@ interface InvidiousPlaylistVideo {
 export const getPlaylistVideosInvidious = async (
   request: PlaylistVideoRequest
 ): Promise<PlaylistVideosResult> => {
-  const instance = await getCurrentInstance();
-  let url = `${instance}/api/v1/playlists/${request.apiId}`;
-  const response = await axios.get<InvidiousPlaylist>(url);
+  let path = `/api/v1/playlists/${request.apiId}`;
+  const response = await sendRequest<InvidiousPlaylist>(path);
   const result = response.data;
   const playlist: PlaylistInfo = {
     name: result.title,
@@ -467,12 +473,11 @@ export const getPlaylistVideosInvidious = async (
 export const getVideoCommentsfromInvidious = async (
   request: VideoCommentsRequest
 ): Promise<VideoCommentsResult> => {
-  const instance = await getCurrentInstance();
-  let url = `${instance}/api/v1/comments/${request.apiId}`;
+  let path = `/api/v1/comments/${request.apiId}`;
   if (request.pageInfo) {
-    url = `${url}?continuation=${request.pageInfo.nextPage}`;
+    path = `${path}?continuation=${request.pageInfo.nextPage}`;
   }
-  const response = await axios.get<InvidiousComments>(url);
+  const response = await sendRequest<InvidiousComments>(path);
   const comments = response.data.comments.map(
     (c): VideoComment => ({
       apiId: c.commentId,
