@@ -1,4 +1,4 @@
-import { localeStringToLocale, MessageType, UiMessageType } from "./shared";
+import { MessageType, UiMessageType } from "./shared";
 import {
   getVideoCommentsfromInvidious,
   getRandomInstance,
@@ -19,7 +19,6 @@ import {
   getVideosFromVideosIds,
   setTokens,
 } from "./youtube";
-import { translate } from "preact-i18n";
 
 const sendMessage = (message: MessageType) => {
   application.postUiMessage(message);
@@ -128,11 +127,7 @@ application.onUiMessage = async (message: UiMessageType) => {
       localStorage.setItem("apiKey", message.apiKey);
       localStorage.setItem("clientId", message.clientId);
       localStorage.setItem("clientSecret", message.clientSecret);
-
-      const localeString = await application.getLocale();
-      const locale = localeStringToLocale(localeString);
-      const notificationText = translate("apiKeysSaved", "common", locale);
-      application.createNotification({ message: notificationText });
+      application.createNotification({ message: "Api Keys saved!" });
       break;
     case "useplayer":
       localStorage.setItem("usePlayer", String(message.usePlayer));
@@ -237,6 +232,25 @@ async function searchAll(request: SearchRequest): Promise<SearchAllResult> {
     playlists,
     channels,
   };
+}
+
+export async function canParseUrl(
+  url: string,
+  type: ParseUrlType
+): Promise<boolean> {
+  const playlistRegex = /^.*(youtu.be\/|list=)([^#\&\?]*).*/;
+  const videoRegex =
+    /^(?:https?:\/\/)?(?:www\.)?(?:m\.)?(?:youtube\.com|youtu.be)\/(?:watch\?v=|embed\/|v\/)?([a-zA-Z0-9_-]+)(?:\S+)?$/;
+  if (!playlistRegex.test(url) && !videoRegex.test(url)) {
+    return false;
+  }
+
+  switch (type) {
+    case "playlist":
+      return new URL(url).searchParams.has("list");
+    default:
+      return false;
+  }
 }
 
 application.onSearchAll = searchAll;
