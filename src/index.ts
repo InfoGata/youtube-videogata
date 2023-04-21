@@ -248,6 +248,8 @@ export async function canParseUrl(
   switch (type) {
     case "playlist":
       return new URL(url).searchParams.has("list");
+    case "video":
+      return true;
     default:
       return false;
   }
@@ -265,16 +267,8 @@ application.onGetTopItems = getTopItems;
 application.onUsePlayer = getUsePlayer;
 application.onGetVideo = getYoutubeVideo;
 application.onLookupPlaylistUrl = importPlaylist;
-application.onCanParseUrl = async (url: string, type: ParseUrlType) => {
-  if (!/https?:\/\/(www\.)?youtube.com\/watch\?v=.*/.test(url)) return false;
-
-  switch (type) {
-    case "playlist":
-      return new URL(url).searchParams.has("list");
-    default:
-      return false;
-  }
-};
+application.onLookupVideoUrls = resolveUrls;
+application.onCanParseUrl = canParseUrl;
 
 const init = async () => {
   const accessToken = localStorage.getItem("access_token");
