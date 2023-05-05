@@ -49,7 +49,14 @@ export async function getVideoFromApiIdPiped(
   const instance = instances[instanceIndex];
   try {
     const url = `${instance}/streams/${apiId}`;
-    const response = await axios.get<PipedApiResponse>(url);
+    const timeoutMs = 10000;
+    const timeoutPromise = new Promise((_, reject) => {
+      setTimeout(() => reject(), timeoutMs);
+    });
+    const responsePromise = axios.get<PipedApiResponse>(url);
+    await Promise.race([responsePromise, timeoutPromise]);
+
+    const response = await responsePromise;
     const data = response.data;
     const video: Video = {
       title: data.title,
@@ -80,7 +87,7 @@ export async function getVideoFromApiIdPiped(
     return video;
   } catch (err) {
     if (instanceIndex < instances.length) {
-      return getVideoFromApiIdPiped(apiId);
+      return getVideoFromApiIdPiped(apiId, instanceIndex + 1);
     }
     throw err;
   }
