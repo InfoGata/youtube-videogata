@@ -117,6 +117,11 @@ interface InvidiousSearchChannel {
   description: string;
 }
 
+interface InvidiousChannelVideos {
+  continuation: string;
+  videos: InvidiousSearchVideo[];
+}
+
 export const fetchInstances = async () => {
   const instancesUrl = "https://api.invidious.io/instances.json";
   const response = await axios.get<InvidiousInstance[]>(instancesUrl);
@@ -410,8 +415,8 @@ export const getChannelVideosInvidious = async (
   } else {
     page.nextPage = "2";
   }
-  const results = await sendRequest<InvidiousSearchVideo[]>(path);
-  const videos = results.data.map(invdiousSearchVideoToVideo);
+  const results = await sendRequest<InvidiousChannelVideos>(path);
+  const videos = results.data.videos.map(invdiousSearchVideoToVideo);
 
   return {
     channel,
