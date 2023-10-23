@@ -1,4 +1,4 @@
-import { MessageType, UiMessageType } from "./shared";
+import { MessageType, UiMessageType, storage } from "./shared";
 import {
   getVideoCommentsfromInvidious,
   getRandomInstance,
@@ -25,7 +25,7 @@ const sendMessage = (message: MessageType) => {
 };
 
 const getUsePlayer = async () => {
-  const usePlayerString = localStorage.getItem("usePlayer");
+  const usePlayerString = storage.getItem("usePlayer");
   return !usePlayerString || usePlayerString === "true";
 };
 
@@ -38,9 +38,9 @@ const sendInfo = async () => {
   const pluginId = await application.getPluginId();
   const locale = await application.getLocale();
   const playlists = await application.getPlaylistsInfo();
-  const apiKey = localStorage.getItem("apiKey") ?? "";
-  const clientId = localStorage.getItem("clientId") ?? "";
-  const clientSecret = localStorage.getItem("clientSecret") ?? "";
+  const apiKey = storage.getItem("apiKey") ?? "";
+  const clientId = storage.getItem("clientId") ?? "";
+  const clientSecret = storage.getItem("clientSecret") ?? "";
   const usePlayer = await getUsePlayer();
   const instance = await getCurrentInstance();
   sendMessage({
@@ -108,7 +108,7 @@ const resolveUrls = async (urlStrings: string[]) => {
 application.onUiMessage = async (message: UiMessageType) => {
   switch (message.type) {
     case "check-login":
-      const accessToken = localStorage.getItem("access_token");
+      const accessToken = storage.getItem("access_token");
       if (accessToken) {
         sendMessage({ type: "login", accessToken: accessToken });
       }
@@ -119,18 +119,18 @@ application.onUiMessage = async (message: UiMessageType) => {
       application.onGetUserPlaylists = getUserPlaylistsYoutube;
       break;
     case "logout":
-      localStorage.removeItem("access_token");
-      localStorage.removeItem("refresh_token");
+      storage.removeItem("access_token");
+      storage.removeItem("refresh_token");
       application.onGetUserPlaylists = undefined;
       break;
     case "set-keys":
-      localStorage.setItem("apiKey", message.apiKey);
-      localStorage.setItem("clientId", message.clientId);
-      localStorage.setItem("clientSecret", message.clientSecret);
+      storage.setItem("apiKey", message.apiKey);
+      storage.setItem("clientId", message.clientId);
+      storage.setItem("clientSecret", message.clientSecret);
       application.createNotification({ message: "Api Keys saved!" });
       break;
     case "useplayer":
-      localStorage.setItem("usePlayer", String(message.usePlayer));
+      storage.setItem("usePlayer", String(message.usePlayer));
       break;
     case "endvideo":
       application.endVideo();
@@ -271,7 +271,7 @@ application.onLookupVideoUrls = resolveUrls;
 application.onCanParseUrl = canParseUrl;
 
 const init = async () => {
-  const accessToken = localStorage.getItem("access_token");
+  const accessToken = storage.getItem("access_token");
   if (accessToken) {
     application.onGetUserPlaylists = getUserPlaylistsYoutube;
   }

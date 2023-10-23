@@ -4,6 +4,7 @@ import {
   getYoutubeChannelUrl,
   getYoutubePlaylistUrl,
   getYoutubeVideoUrl,
+  storage,
   TOKEN_URL,
 } from "./shared";
 
@@ -11,18 +12,18 @@ const key = "AIzaSyCCwk2lWH7eyv_48Jimp3hBFhR7CFZkWhM";
 const http = axios.create();
 
 export const setTokens = (accessToken: string, refreshToken?: string) => {
-  localStorage.setItem("access_token", accessToken);
+  storage.setItem("access_token", accessToken);
   if (refreshToken) {
-    localStorage.setItem("refresh_token", refreshToken);
+    storage.setItem("refresh_token", refreshToken);
   }
 };
 
 const refreshToken = async () => {
-  const refreshToken = localStorage.getItem("refresh_token");
+  const refreshToken = storage.getItem("refresh_token");
   if (!refreshToken) return;
 
-  const clientId = localStorage.getItem("clientId");
-  const clientSecret = localStorage.getItem("clientSecret");
+  const clientId = storage.getItem("clientId");
+  const clientSecret = storage.getItem("clientSecret");
   const tokenUrl = TOKEN_URL;
 
   const params = new URLSearchParams();
@@ -48,7 +49,7 @@ const refreshToken = async () => {
 
 http.interceptors.request.use(
   (config) => {
-    const token = localStorage.getItem("access_token");
+    const token = storage.getItem("access_token");
     if (token) {
       config.headers["Authorization"] = "Bearer " + token;
     }
@@ -75,7 +76,7 @@ http.interceptors.response.use(
 );
 
 export const getApiKey = () => {
-  const apiKey = localStorage.getItem("apiKey");
+  const apiKey = storage.getItem("apiKey");
   return apiKey;
 };
 

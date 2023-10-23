@@ -15,6 +15,45 @@ export const localeStringToLocale = (localeString: string) => {
   return locale ? locale : en;
 };
 
+export const storage: Storage = {
+  get length() {
+    try {
+      return localStorage.length;
+    } catch {
+      return 0;
+    }
+  },
+  clear: function (): void {
+    try {
+      localStorage.clear();
+    } catch {}
+  },
+  getItem: function (key: string): string | null {
+    try {
+      return localStorage.getItem(key);
+    } catch {
+      return null;
+    }
+  },
+  removeItem: function (key: string): void {
+    try {
+      localStorage.removeItem(key);
+    } catch {}
+  },
+  setItem: function (key: string, value: string): void {
+    try {
+      localStorage.setItem(key, value);
+    } catch {}
+  },
+  key: function (index: number): string | null {
+    try {
+      return localStorage.key(index);
+    } catch {
+      return null;
+    }
+  },
+};
+
 type UiCheckLoginType = {
   type: "check-login";
 };

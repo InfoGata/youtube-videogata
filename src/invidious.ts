@@ -3,6 +3,7 @@ import {
   getYoutubeChannelUrl,
   getYoutubePlaylistUrl,
   getYoutubeVideoUrl,
+  storage,
   StorageType,
 } from "./shared";
 
@@ -133,12 +134,12 @@ export const fetchInstances = async () => {
   );
   // Only use instances that uses cors
   instances = instances.filter((instance) => instance[1].cors);
-  localStorage.setItem(StorageType.Instances, JSON.stringify(instances));
+  storage.setItem(StorageType.Instances, JSON.stringify(instances));
   return instances;
 };
 
 export const getRandomInstance = async (): Promise<string> => {
-  const instanceString = localStorage.getItem(StorageType.Instances);
+  const instanceString = storage.getItem(StorageType.Instances);
   let instances: InvidiousInstance[] = [];
   if (instanceString) {
     instances = JSON.parse(instanceString);
@@ -148,12 +149,12 @@ export const getRandomInstance = async (): Promise<string> => {
   const randomIndex = Math.floor(Math.random() * instances.length);
   const newInstance = instances[randomIndex][1].uri;
 
-  localStorage.setItem(StorageType.CurrentInstance, newInstance);
+  storage.setItem(StorageType.CurrentInstance, newInstance);
   return newInstance;
 };
 
 export const getCurrentInstance = async (): Promise<string> => {
-  let instance = localStorage.getItem(StorageType.CurrentInstance);
+  let instance = storage.getItem(StorageType.CurrentInstance);
   if (!instance) {
     instance = await getRandomInstance();
   }
