@@ -11,6 +11,7 @@ import {
   searchPlaylistsInvidious,
   getPlaylistVideosInvidious,
   getChannelVideosInvidious,
+  onGetInvidiousSearchSuggestions,
 } from "./invidious";
 import { getVideoFromApiIdPiped } from "./piped";
 import {
@@ -255,6 +256,10 @@ export async function canParseUrl(
   }
 }
 
+export async function getSuggestions(request: GetSearchSuggestionsRequest) {
+  return onGetInvidiousSearchSuggestions(request);
+}
+
 application.onSearchAll = searchAll;
 application.onSearchVideos = searchVideos;
 application.onSearchPlaylists = searchPlaylists;
@@ -269,6 +274,7 @@ application.onGetVideo = getYoutubeVideo;
 application.onLookupPlaylistUrl = importPlaylist;
 application.onLookupVideoUrls = resolveUrls;
 application.onCanParseUrl = canParseUrl;
+application.onGetSearchSuggestions = getSuggestions;
 
 const init = async () => {
   const accessToken = storage.getItem("access_token");

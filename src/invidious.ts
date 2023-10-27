@@ -426,6 +426,16 @@ export const getChannelVideosInvidious = async (
   };
 };
 
+export const onGetInvidiousSearchSuggestions = async (
+  request: GetSearchSuggestionsRequest
+): Promise<string[]> => {
+  const path = `/api/v1/search/suggestions?q=${request.query}`;
+  const response = await sendRequest<{ query: string; suggestions: string[] }>(
+    path
+  );
+  return response.data.suggestions;
+};
+
 interface InvidiousPlaylist {
   title: string;
   playlistId: string;
