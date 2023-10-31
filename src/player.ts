@@ -1,10 +1,17 @@
 import { UiMessageType } from "./shared";
 
+const getTime = () => {
+  const hashSearchParams = new URLSearchParams(location.hash.substring(1));
+  const t = parseInt(hashSearchParams.get("t") ?? "0", 10) || undefined;
+  return t;
+};
+
 let player: YT.Player;
 const loadVideoPlayer = () => {
   (window as any).onYouTubeIframeAPIReady = () => {
     const urlSearchParams = new URLSearchParams(window.location.search);
-    const apiId = urlSearchParams.get("apiId");
+    const apiId = urlSearchParams.get("apiId") ?? undefined;
+    const t = getTime();
     if (apiId) {
       player = new YT.Player("player", {
         width: "100%",
@@ -12,11 +19,19 @@ const loadVideoPlayer = () => {
         videoId: apiId,
         playerVars: {
           playsinline: 1,
+          start: t,
         },
         events: {
           onReady: onPlayerReady,
           onStateChange: onPlayerStateChange,
         },
+      });
+
+      window.addEventListener("hashchange", () => {
+        const t = getTime();
+        if (t) {
+          player.seekTo(t, true);
+        }
       });
     }
   };
