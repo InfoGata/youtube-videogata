@@ -16,6 +16,7 @@ import {
 import { getVideoFromApiIdPiped } from "./piped";
 import {
   getPlaylistVideosYoutube,
+  getTopItemsYoutube,
   getUserPlaylistsYoutube,
   getVideosFromVideosIds,
   setTokens,
@@ -186,14 +187,11 @@ async function getPlaylistVideos(
 }
 
 async function getTopItems(): Promise<SearchAllResult> {
-  const videos = await getTrendingInvidious();
-  const videoResults: SearchVideoResult = {
-    items: videos,
-  };
-
-  return {
-    videos: videoResults,
-  };
+  try {
+    return await getTopItemsYoutube();
+  } catch {
+    return await getTrendingInvidious();
+  }
 }
 
 async function getYoutubeVideo(request: GetVideoRequest): Promise<Video> {

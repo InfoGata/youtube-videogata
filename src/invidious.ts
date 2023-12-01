@@ -224,12 +224,18 @@ const invdiousSearchVideoToVideo = (result: InvidiousSearchVideo): Video => {
   };
 };
 
-export const getTrendingInvidious = async (): Promise<Video[]> => {
+export const getTrendingInvidious = async (): Promise<SearchAllResult> => {
   const path = `/api/v1/trending`;
   const response = await sendRequest<InvidiousSearchVideo[]>(path);
   const videos = response.data.map(invdiousSearchVideoToVideo);
 
-  return videos;
+  const videoResults: SearchVideoResult = {
+    items: videos,
+  };
+
+  return {
+    videos: videoResults,
+  };
 };
 
 export const searchVideosInvidious = async (

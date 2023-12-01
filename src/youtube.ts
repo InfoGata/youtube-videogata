@@ -165,9 +165,10 @@ function playlistSearchResultToPlaylist(
   );
 }
 
-export async function getTopItems(): Promise<SearchAllResult> {
+export async function getTopItemsYoutube(): Promise<SearchAllResult> {
   const url = "https://www.googleapis.com/youtube/v3/videos";
-  const urlWithQuery = `${url}?key=${getApiKey()}&videoCategoryId=10&chart=mostPopular&part=snippet,contentDetails`;
+  const apiKey = getApiKey() || key;
+  const urlWithQuery = `${url}?key=${apiKey}&chart=mostPopular&part=snippet,contentDetails`;
   const detailsResults =
     await axios.get<GoogleAppsScript.YouTube.Schema.VideoListResponse>(
       urlWithQuery
