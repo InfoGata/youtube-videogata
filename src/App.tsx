@@ -32,6 +32,7 @@ import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import { VisibilityOff, Visibility } from "@mui/icons-material";
 import en from "./locales/en.json";
 import { IntlProvider, Text, translate } from "preact-i18n";
+import { TargetedEvent } from "preact/compat";
 
 const sendUiMessage = (message: UiMessageType) => {
   parent.postMessage(message, "*");
@@ -221,7 +222,7 @@ const App: FunctionComponent = () => {
                     <TextField
                       label="Api Key"
                       value={apiKey}
-                      onChange={(e) => {
+                      onChange={(e: TargetedEvent<HTMLInputElement>) => {
                         const value = e.currentTarget.value;
                         setApiKey(value);
                       }}
@@ -229,7 +230,7 @@ const App: FunctionComponent = () => {
                     <TextField
                       label="Client ID"
                       value={clientId}
-                      onChange={(e) => {
+                      onChange={(e: TargetedEvent<HTMLInputElement>) => {
                         const value = e.currentTarget.value;
                         setClientId(value);
                       }}
@@ -238,7 +239,7 @@ const App: FunctionComponent = () => {
                       type={showPassword ? "text" : "password"}
                       label="Client Secret"
                       value={clientSecret}
-                      onChange={(e) => {
+                      onChange={(e: TargetedEvent<HTMLInputElement>) => {
                         const value = e.currentTarget.value;
                         setClientSecret(value);
                       }}
@@ -300,36 +301,43 @@ const App: FunctionComponent = () => {
               }
             ></FormControlLabel>
           </FormGroup>
-          <Typography>
-            <Text id="addTracksByUrl">{en.common.addVideosByUrl}</Text>:
-          </Typography>
-          <TextField
-            value={videoUrls}
-            onChange={(e) => {
-              const value = e.currentTarget.value;
-              setVideoUrls(value);
-            }}
-            multiline
-            rows={2}
-          />
-          <FormControl fullWidth>
-            <InputLabel htmlFor="playlist-select">Playlist</InputLabel>
-            <Select
-              labelId="playlist-select"
-              value={playlistId}
-              onChange={(e) => {
-                const v = e.target && "value" in e.target ? e.target.value : "";
-                setPlaylistId(v);
-              }}
-            >
-              {playlists.map((p) => (
-                <MenuItem value={p.id}>{p.name}</MenuItem>
-              ))}
-            </Select>
-          </FormControl>
-          <Button variant="contained" onClick={saveVideoUrl}>
-            <Text id="save">{en.common.save}</Text>
-          </Button>
+          <Box>
+            {playlists.length > 0 && (
+              <Stack>
+                <Typography>
+                  <Text id="addTracksByUrl">{en.common.addVideosByUrl}</Text>:
+                </Typography>
+                <TextField
+                  value={videoUrls}
+                  onChange={(e: TargetedEvent<HTMLInputElement>) => {
+                    const value = e.currentTarget.value;
+                    setVideoUrls(value);
+                  }}
+                  multiline
+                  rows={2}
+                />
+                <FormControl fullWidth>
+                  <InputLabel htmlFor="playlist-select">Playlist</InputLabel>
+                  <Select
+                    labelId="playlist-select"
+                    value={playlistId}
+                    onChange={(e) => {
+                      const v =
+                        e.target && "value" in e.target ? e.target.value : "";
+                      setPlaylistId(v);
+                    }}
+                  >
+                    {playlists.map((p) => (
+                      <MenuItem value={p.id}>{p.name}</MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+                <Button variant="contained" onClick={saveVideoUrl}>
+                  <Text id="save">{en.common.save}</Text>
+                </Button>
+              </Stack>
+            )}
+          </Box>
         </Stack>
       </Box>
     </IntlProvider>
