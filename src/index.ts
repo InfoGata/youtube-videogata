@@ -21,6 +21,11 @@ import {
   getVideosFromVideosIds,
   setTokens,
 } from "./youtube";
+import {
+  getTopInnerTubeItems,
+  getUserChannelsInnerTube,
+  getUserPlaylistsInnertube,
+} from "./innertube-api";
 
 const sendMessage = (message: MessageType) => {
   application.postUiMessage(message);
@@ -187,9 +192,14 @@ async function getPlaylistVideos(
 }
 
 async function getTopItems(): Promise<SearchAllResult> {
+  const isDisabled = await application.isNetworkRequestCorsDisabled();
   try {
+    if (isDisabled) {
+      return await getTopInnerTubeItems();
+    }
     return await getTopItemsYoutube();
-  } catch {
+  } catch (e) {
+    console.log(e);
     return await getTrendingInvidious();
   }
 }
@@ -259,6 +269,16 @@ export async function getSuggestions(request: GetSearchSuggestionsRequest) {
   return onGetInvidiousSearchSuggestions(request);
 }
 
+const postLogin = async () => {
+  application.onGetUserChannels = getUserChannelsInnerTube;
+  application.onGetUserPlaylists = getUserPlaylistsInnertube;
+};
+
+const postLogout = async () => {
+  application.onGetUserChannels = undefined;
+  application.onGetUserPlaylists = undefined;
+};
+
 application.onSearchAll = searchAll;
 application.onSearchVideos = searchVideos;
 application.onSearchPlaylists = searchPlaylists;
@@ -274,6 +294,8 @@ application.onLookupPlaylistUrl = importPlaylist;
 application.onLookupVideoUrls = resolveUrls;
 application.onCanParseUrl = canParseUrl;
 application.onGetSearchSuggestions = getSuggestions;
+application.onPostLogin = postLogin;
+application.onPostLogout = postLogout;
 
 const init = async () => {
   const accessToken = storage.getItem("access_token");
@@ -281,6 +303,10 @@ const init = async () => {
     application.onGetUserPlaylists = getUserPlaylistsYoutube;
   }
   await fetchInstances();
+
+  if (await application.isLoggedIn()) {
+    postLogin();
+  }
 };
 
 init();

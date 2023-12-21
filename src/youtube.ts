@@ -299,7 +299,7 @@ export async function getPlaylistVideosYoutube(
       // Next Page
       urlWithQuery += `&pageToken=${request.pageInfo.nextPage}`;
     } else if (request.pageInfo.prevPage) {
-      // Prev P1ge
+      // Prev Page
       urlWithQuery += `&pageToken=${request.pageInfo.prevPage}`;
     }
   }
