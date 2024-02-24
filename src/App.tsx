@@ -1,25 +1,20 @@
+import { createEffect, createSignal } from "solid-js";
 import {
   Accordion,
-  AccordionDetails,
-  AccordionSummary,
-  Box,
-  Button,
-  Checkbox,
-  CssBaseline,
-  FormControl,
-  FormControlLabel,
-  FormGroup,
-  IconButton,
-  InputAdornment,
-  InputLabel,
-  MenuItem,
+  AccordionContent,
+  AccordionItem,
+} from "./components/ui/accordion";
+import { Button } from "./components/ui/button";
+import { Checkbox } from "./components/ui/checkbox";
+import { Input } from "./components/ui/input";
+import {
   Select,
-  Stack,
-  TextField,
-  Typography,
-} from "@mui/material";
-import { useEffect, useState } from "preact/hooks";
-import { FunctionComponent, JSX } from "preact";
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "./components/ui/select";
+import { Textarea } from "./components/ui/textarea";
+import en from "./locales/en.json";
 import {
   getAuthUrl,
   getToken,
@@ -28,33 +23,27 @@ import {
   REDIRECT_PATH,
   UiMessageType,
 } from "./shared";
-import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
-import { VisibilityOff, Visibility } from "@mui/icons-material";
-import en from "./locales/en.json";
-import { IntlProvider, Text, translate } from "preact-i18n";
 
 const sendUiMessage = (message: UiMessageType) => {
   parent.postMessage(message, "*");
 };
 
-const App: FunctionComponent = () => {
-  const [accessToken, setAccessToken] = useState("");
-  const [playlists, setPlaylists] = useState<PlaylistInfo[]>([]);
-  const [playlistId, setPlaylistId] = useState("");
-  const [pluginId, setPluginId] = useState("");
-  const [redirectUri, setRedirectUri] = useState("");
-  const [showAdvanced, setShowAdvanced] = useState(false);
-  const [useOwnKeys, setUseOwnKeys] = useState(false);
-  const [apiKey, setApiKey] = useState("");
-  const [clientId, setClientId] = useState("");
-  const [clientSecret, setClientSecret] = useState("");
-  const [showPassword, setShowPassword] = useState(false);
-  const [usePlayer, setUsePlayer] = useState(true);
-  const [instance, setInstance] = useState("");
-  const [locale, setLocale] = useState<{}>(en);
-  const [videoUrls, setVideoUrls] = useState("");
+const App = () => {
+  const [accessToken, setAccessToken] = createSignal("");
+  const [playlists, setPlaylists] = createSignal<PlaylistInfo[]>([]);
+  const [playlistId, setPlaylistId] = createSignal("");
+  const [pluginId, setPluginId] = createSignal("");
+  const [redirectUri, setRedirectUri] = createSignal("");
+  const [useOwnKeys, setUseOwnKeys] = createSignal(false);
+  const [apiKey, setApiKey] = createSignal("");
+  const [clientId, setClientId] = createSignal("");
+  const [clientSecret, setClientSecret] = createSignal("");
+  const [usePlayer, setUsePlayer] = createSignal(true);
+  const [instance, setInstance] = createSignal("");
+  const [locale, setLocale] = createSignal<{}>(en);
+  const [videoUrls, setVideoUrls] = createSignal("");
 
-  useEffect(() => {
+  createEffect(() => {
     const onNewWindowMessage = (event: MessageEvent<MessageType>) => {
       switch (event.data.type) {
         case "login":
@@ -73,7 +62,6 @@ const App: FunctionComponent = () => {
           setLocale(localeStringToLocale(event.data.locale));
           setPlaylists(event.data.playlists);
           if (event.data.clientId) {
-            setShowAdvanced(true);
             setUseOwnKeys(true);
           }
           break;
@@ -88,10 +76,10 @@ const App: FunctionComponent = () => {
     window.addEventListener("message", onNewWindowMessage);
     sendUiMessage({ type: "check-login" });
     return () => window.removeEventListener("message", onNewWindowMessage);
-  }, []);
+  });
 
   const onLogin = () => {
-    const url = getAuthUrl(redirectUri, pluginId, clientId);
+    const url = getAuthUrl(redirectUri(), pluginId(), clientId());
     const newWindow = window.open(url);
 
     const onMessage = async (returnUrl: string) => {
@@ -100,9 +88,9 @@ const App: FunctionComponent = () => {
       if (code) {
         const response = await getToken(
           code,
-          redirectUri,
-          clientId,
-          clientSecret
+          redirectUri(),
+          clientId(),
+          clientSecret()
         );
         if (response.access_token) {
           sendUiMessage({
@@ -138,9 +126,9 @@ const App: FunctionComponent = () => {
     setUseOwnKeys(!!clientId);
     sendUiMessage({
       type: "set-keys",
-      clientId: clientId,
-      clientSecret: clientSecret,
-      apiKey: apiKey,
+      clientId: clientId(),
+      clientSecret: clientSecret(),
+      apiKey: apiKey(),
     });
   };
 
@@ -157,187 +145,115 @@ const App: FunctionComponent = () => {
     });
   };
 
-  const onAccordionChange = (_: any, expanded: boolean) => {
-    setShowAdvanced(expanded);
-  };
-
-  const handleClickShowPassword = () => {
-    setShowPassword(!showPassword);
-  };
-
-  const handleMouseDownPassword = (event: JSX.TargetedEvent) => {
-    event.preventDefault();
-  };
-
   const getInstance = () => {
     sendUiMessage({ type: "getinstnace" });
   };
 
   const saveVideoUrl = () => {
-    if (playlistId) {
-      sendUiMessage({ type: "resolve-urls", videoUrls, playlistId });
+    if (playlistId()) {
+      sendUiMessage({
+        type: "resolve-urls",
+        videoUrls: videoUrls(),
+        playlistId: playlistId(),
+      });
     }
   };
 
   return (
-    <IntlProvider definition={locale} scope="common">
-      <Box sx={{ display: "flex" }}>
-        <CssBaseline />
-        <Stack spacing={2}>
-          {accessToken ? (
-            <div>
-              <Button variant="contained" onClick={onLogout}>
-                <Text id="logout">{en.common.logout}</Text>
-              </Button>
-            </div>
-          ) : (
-            <div>
-              <Accordion expanded={showAdvanced} onChange={onAccordionChange}>
-                <AccordionSummary
-                  expandIcon={<ExpandMoreIcon />}
-                  aria-controls="panel1d-content"
-                  id="panel1d-header"
-                >
-                  <Typography>
-                    <Text id="advancedConfiguration">
-                      {en.common.advancedConfiguration}
-                    </Text>
-                  </Typography>
-                </AccordionSummary>
-                <AccordionDetails>
-                  <Button
-                    variant="contained"
-                    onClick={onLogin}
-                    disabled={!useOwnKeys}
-                  >
-                    <Text id="login">{en.common.login}</Text>
+    <div class="flex">
+      <div class="flex flex-col gap-2">
+        {accessToken() ? (
+          <div>
+            <Button onClick={onLogout}>Logout</Button>
+          </div>
+        ) : (
+          <div>
+            <Accordion multiple collapsible>
+              <AccordionItem value="item-1">
+                Advanced Configuration
+                <AccordionContent>
+                  <Button onClick={onLogin} disabled={!useOwnKeys}>
+                    Login
                   </Button>
-                  <Typography>
-                    <Text id="supplyOwnKeys">{en.common.supplyOwnKeys}</Text>:
-                  </Typography>
-                  <Typography>
-                    <Text id="addRedirectUri" fields={{ redirectUri }}>
-                      {translate("addRedirectUri", "common", en, {
-                        redirectUri,
-                      })}
-                    </Text>
-                  </Typography>
+                  <p>Supplying your own keys</p>
+                  <p>
+                    {redirectUri()} needs be added to 'Authorized Javascript
+                    URIs'
+                  </p>
                   <div>
-                    <TextField
-                      label="Api Key"
-                      value={apiKey}
+                    <Input
+                      placeholder="Api Key"
+                      value={apiKey()}
                       onChange={(e) => {
                         const value = e.currentTarget.value;
                         setApiKey(value);
                       }}
                     />
-                    <TextField
-                      label="Client ID"
-                      value={clientId}
+                    <Input
+                      placeholder="Client ID"
+                      value={clientId()}
                       onChange={(e) => {
                         const value = e.currentTarget.value;
                         setClientId(value);
                       }}
                     />
-                    <TextField
-                      type={showPassword ? "text" : "password"}
-                      label="Client Secret"
-                      value={clientSecret}
+                    <Input
+                      type="password"
+                      placeholder="Client Secret"
+                      value={clientSecret()}
                       onChange={(e) => {
                         const value = e.currentTarget.value;
                         setClientSecret(value);
                       }}
-                      InputProps={{
-                        endAdornment: (
-                          <InputAdornment position="end">
-                            <IconButton
-                              aria-label="toggle password visibility"
-                              onClick={handleClickShowPassword}
-                              onMouseDown={handleMouseDownPassword}
-                              edge="end"
-                            >
-                              {showPassword ? (
-                                <VisibilityOff />
-                              ) : (
-                                <Visibility />
-                              )}
-                            </IconButton>
-                          </InputAdornment>
-                        ),
-                      }}
                     />
                   </div>
-                  <Stack spacing={2} direction="row">
-                    <Button variant="contained" onClick={onSaveKeys}>
-                      <Text id="save">{en.common.save}</Text>
+                  <div class="flex gap-2">
+                    <Button onClick={onSaveKeys}>Save</Button>
+                    <Button onClick={onClearKeys} color="error">
+                      Clear
                     </Button>
-                    <Button
-                      variant="contained"
-                      onClick={onClearKeys}
-                      color="error"
-                    >
-                      <Text id="clear">{en.common.clear}</Text>
-                    </Button>
-                  </Stack>
-                </AccordionDetails>
-              </Accordion>
-            </div>
+                  </div>
+                </AccordionContent>
+              </AccordionItem>
+            </Accordion>
+          </div>
+        )}
+        <div class="w-full">
+          <Input value={instance()} disabled />
+        </div>
+        <Button onClick={getInstance}>Get Different Instance</Button>
+        <div class="flex items-top space-x-2">
+          <Checkbox id="player" checked={usePlayer()} onChange={setUsePlayer} />
+          <div class="grid gap1.5 leading-none">Use Youtube Player</div>
+        </div>
+        <div></div>
+        <p>Add videos by Url (One Url per line)</p>
+        <Textarea
+          value={videoUrls()}
+          onChange={(e) => {
+            const value = e.currentTarget.value;
+            setVideoUrls(value);
+          }}
+          rows={2}
+        />
+        <Select
+          value={playlistId}
+          onChange={setPlaylistId}
+          placeholder="Placeholder"
+          itemComponent={(props) => (
+            <SelectItem item={props.item}>{props.item.rawValue()}</SelectItem>
           )}
-          <Box sx={{ width: "100%" }}>
-            <TextField value={instance} fullWidth disabled />
-          </Box>
-          <Button onClick={getInstance}>Get Different Instance</Button>
-          <FormGroup>
-            <FormControlLabel
-              control={
-                <Checkbox
-                  checked={usePlayer}
-                  onChange={(e) => {
-                    const checked = e.currentTarget.checked;
-                    setUsePlayer(checked);
-                    sendUiMessage({ type: "useplayer", usePlayer: checked });
-                  }}
-                  inputProps={{ "aria-label": "controlled" }}
-                />
-              }
-              label={
-                <Text id="useYoutubePlayer">{en.common.useYoutubePlayer}</Text>
-              }
-            ></FormControlLabel>
-          </FormGroup>
-          <Typography>
-            <Text id="addTracksByUrl">{en.common.addVideosByUrl}</Text>:
-          </Typography>
-          <TextField
-            value={videoUrls}
-            onChange={(e) => {
-              const value = e.currentTarget.value;
-              setVideoUrls(value);
-            }}
-            multiline
-            rows={2}
-          />
-          <FormControl fullWidth>
-            <InputLabel htmlFor="playlist-select">Playlist</InputLabel>
-            <Select
-              labelId="playlist-select"
-              value={playlistId}
-              onChange={(e) => {
-                const v = e.target && "value" in e.target ? e.target.value : "";
-                setPlaylistId(v);
-              }}
-            >
-              {playlists.map((p) => (
-                <MenuItem value={p.id}>{p.name}</MenuItem>
-              ))}
-            </Select>
-          </FormControl>
-          <Button variant="contained" onClick={saveVideoUrl}>
-            <Text id="save">{en.common.save}</Text>
-          </Button>
-        </Stack>
-      </Box>
-    </IntlProvider>
+          options={playlists().map((p) => p.id)}
+        >
+          <SelectTrigger>
+            <SelectValue<string>>
+              {(state) => state.selectedOption()}
+            </SelectValue>
+          </SelectTrigger>
+        </Select>
+        <Button onClick={saveVideoUrl}>Save</Button>
+      </div>
+    </div>
   );
 };
 
