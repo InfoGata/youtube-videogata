@@ -98,7 +98,12 @@ const App: FunctionComponent = () => {
       const url = new URL(returnUrl);
       const code = url.searchParams.get("code");
       if (code) {
-        const response = await getToken(code, redirectUri);
+        const response = await getToken(
+          code,
+          redirectUri,
+          clientId,
+          clientSecret
+        );
         if (response.access_token) {
           sendUiMessage({
             type: "login",

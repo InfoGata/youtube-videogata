@@ -158,8 +158,8 @@ export const getAuthUrl = (
 export const getToken = async (
   code: string,
   redirectUri: string,
-  clientId?: string,
-  clientSecret?: string
+  clientId: string,
+  clientSecret: string
 ) => {
   const tokenUrl = TOKEN_URL;
   const params = new URLSearchParams();
