@@ -1,37 +1,40 @@
-import { createEffect, createSignal } from "solid-js";
+import { createEffect, createMemo, createSignal } from "solid-js";
 import {
   Accordion,
   AccordionContent,
   AccordionItem,
+  AccordionTrigger,
 } from "./components/ui/accordion";
 import { Button } from "./components/ui/button";
 import { Checkbox } from "./components/ui/checkbox";
 import { Input } from "./components/ui/input";
-import {
-  Select,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "./components/ui/select";
-import { Textarea } from "./components/ui/textarea";
 import en from "./locales/en.json";
 import {
   getAuthUrl,
   getToken,
-  localeStringToLocale,
   MessageType,
   REDIRECT_PATH,
   UiMessageType,
 } from "./shared";
+import * as i18n from "@solid-primitives/i18n";
 
 const sendUiMessage = (message: UiMessageType) => {
   parent.postMessage(message, "*");
 };
 
+export type Locale = "en";
+type Dict = typeof en;
+
+const dictionaries: Record<Locale, Dict> = {
+  en: en,
+};
+
+const validLocales = ["en"] as const;
+const isValidLocale = (value: unknown): value is Locale =>
+  validLocales.includes(value as Locale);
+
 const App = () => {
   const [accessToken, setAccessToken] = createSignal("");
-  const [playlists, setPlaylists] = createSignal<PlaylistInfo[]>([]);
-  const [playlistId, setPlaylistId] = createSignal("");
   const [pluginId, setPluginId] = createSignal("");
   const [redirectUri, setRedirectUri] = createSignal("");
   const [useOwnKeys, setUseOwnKeys] = createSignal(false);
@@ -40,8 +43,12 @@ const App = () => {
   const [clientSecret, setClientSecret] = createSignal("");
   const [usePlayer, setUsePlayer] = createSignal(true);
   const [instance, setInstance] = createSignal("");
-  const [locale, setLocale] = createSignal<{}>(en);
+  const [locale, setLocale] = createSignal<Locale>("en");
   const [videoUrls, setVideoUrls] = createSignal("");
+
+  const dict = createMemo(() => i18n.flatten(dictionaries[locale()]));
+
+  const t = i18n.translator(dict, i18n.resolveTemplate);
 
   createEffect(() => {
     const onNewWindowMessage = (event: MessageEvent<MessageType>) => {
@@ -59,8 +66,10 @@ const App = () => {
           setClientSecret(event.data.clientSecret);
           setUsePlayer(event.data.usePlayer);
           setInstance(event.data.instance);
-          setLocale(localeStringToLocale(event.data.locale));
-          setPlaylists(event.data.playlists);
+          const locale = isValidLocale(event.data.locale)
+            ? event.data.locale
+            : "en";
+          setLocale(locale);
           if (event.data.clientId) {
             setUseOwnKeys(true);
           }
@@ -149,36 +158,27 @@ const App = () => {
     sendUiMessage({ type: "getinstnace" });
   };
 
-  const saveVideoUrl = () => {
-    if (playlistId()) {
-      sendUiMessage({
-        type: "resolve-urls",
-        videoUrls: videoUrls(),
-        playlistId: playlistId(),
-      });
-    }
-  };
-
   return (
     <div class="flex">
-      <div class="flex flex-col gap-2">
+      <div class="flex flex-col gap-2 w-full">
         {accessToken() ? (
           <div>
-            <Button onClick={onLogout}>Logout</Button>
+            <Button onClick={onLogout}>{t("common.logout")}</Button>
           </div>
         ) : (
           <div>
             <Accordion multiple collapsible>
               <AccordionItem value="item-1">
-                Advanced Configuration
+                <AccordionTrigger>
+                  {t("common.advancedConfiguration")}
+                </AccordionTrigger>
                 <AccordionContent>
                   <Button onClick={onLogin} disabled={!useOwnKeys}>
-                    Login
+                    {t("common.login")}
                   </Button>
-                  <p>Supplying your own keys</p>
+                  <p>{t("common.supplyOwnKeys")}</p>
                   <p>
-                    {redirectUri()} needs be added to 'Authorized Javascript
-                    URIs'
+                    {t("common.addRedirectUri", { redirectUri: redirectUri() })}
                   </p>
                   <div>
                     <Input
@@ -208,9 +208,13 @@ const App = () => {
                     />
                   </div>
                   <div class="flex gap-2">
-                    <Button onClick={onSaveKeys}>Save</Button>
-                    <Button onClick={onClearKeys} color="error">
-                      Clear
+                    <Button onClick={onSaveKeys}>{t("common.save")}</Button>
+                    <Button
+                      variant="destructive"
+                      onClick={onClearKeys}
+                      color="error"
+                    >
+                      {t("common.clear")}
                     </Button>
                   </div>
                 </AccordionContent>
@@ -221,37 +225,15 @@ const App = () => {
         <div class="w-full">
           <Input value={instance()} disabled />
         </div>
-        <Button onClick={getInstance}>Get Different Instance</Button>
+        <Button onClick={getInstance}>
+          {t("common.getDifferentInstance")}
+        </Button>
         <div class="flex items-top space-x-2">
           <Checkbox id="player" checked={usePlayer()} onChange={setUsePlayer} />
-          <div class="grid gap1.5 leading-none">Use Youtube Player</div>
+          <div class="grid gap1.5 leading-none">
+            {t("common.useYoutubePlayer")}
+          </div>
         </div>
-        <div></div>
-        <p>Add videos by Url (One Url per line)</p>
-        <Textarea
-          value={videoUrls()}
-          onChange={(e) => {
-            const value = e.currentTarget.value;
-            setVideoUrls(value);
-          }}
-          rows={2}
-        />
-        <Select
-          value={playlistId}
-          onChange={setPlaylistId}
-          placeholder="Placeholder"
-          itemComponent={(props) => (
-            <SelectItem item={props.item}>{props.item.rawValue()}</SelectItem>
-          )}
-          options={playlists().map((p) => p.id)}
-        >
-          <SelectTrigger>
-            <SelectValue<string>>
-              {(state) => state.selectedOption()}
-            </SelectValue>
-          </SelectTrigger>
-        </Select>
-        <Button onClick={saveVideoUrl}>Save</Button>
       </div>
     </div>
   );

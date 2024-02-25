@@ -7,9 +7,9 @@
   "dependencies": {
     "@infogata/videogata-plugin-typings": "1.12.0",
     "@kobalte/core": "^0.12.1",
+    "@solid-primitives/i18n": "^2.0.1",
     "@tabler/icons-solidjs": "^2.46.0",
     "@types/google-apps-script": "^1.0.47",
-    "@types/preact-i18n": "^2.3.1",
     "@types/youtube": "^0.0.47",
     "axios": "^0.21.1",
     "babel-preset-solid": "^1.8.15",

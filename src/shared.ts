@@ -10,11 +10,6 @@ const locales: Record<string, {} | undefined> = {
   en,
 };
 
-export const localeStringToLocale = (localeString: string) => {
-  const locale = locales[localeString];
-  return locale ? locale : en;
-};
-
 export const storage: Storage = {
   get length() {
     try {
