@@ -173,49 +173,53 @@ const App = () => {
                   {t("common.advancedConfiguration")}
                 </AccordionTrigger>
                 <AccordionContent>
-                  <Button onClick={onLogin} disabled={!useOwnKeys}>
-                    {t("common.login")}
-                  </Button>
-                  <p>{t("common.supplyOwnKeys")}</p>
-                  <p>
-                    {t("common.addRedirectUri", { redirectUri: redirectUri() })}
-                  </p>
-                  <div>
-                    <Input
-                      placeholder="Api Key"
-                      value={apiKey()}
-                      onChange={(e) => {
-                        const value = e.currentTarget.value;
-                        setApiKey(value);
-                      }}
-                    />
-                    <Input
-                      placeholder="Client ID"
-                      value={clientId()}
-                      onChange={(e) => {
-                        const value = e.currentTarget.value;
-                        setClientId(value);
-                      }}
-                    />
-                    <Input
-                      type="password"
-                      placeholder="Client Secret"
-                      value={clientSecret()}
-                      onChange={(e) => {
-                        const value = e.currentTarget.value;
-                        setClientSecret(value);
-                      }}
-                    />
-                  </div>
-                  <div class="flex gap-2">
-                    <Button onClick={onSaveKeys}>{t("common.save")}</Button>
-                    <Button
-                      variant="destructive"
-                      onClick={onClearKeys}
-                      color="error"
-                    >
-                      {t("common.clear")}
+                  <div class="flex flex-col gap-4 m-4">
+                    <Button onClick={onLogin} disabled={!useOwnKeys}>
+                      {t("common.login")}
                     </Button>
+                    <p>{t("common.supplyOwnKeys")}</p>
+                    <p>
+                      {t("common.addRedirectUri", {
+                        redirectUri: redirectUri(),
+                      })}
+                    </p>
+                    <div class="flex flex-wrap gap-2">
+                      <Input
+                        placeholder="Api Key"
+                        value={apiKey()}
+                        onChange={(e) => {
+                          const value = e.currentTarget.value;
+                          setApiKey(value);
+                        }}
+                      />
+                      <Input
+                        placeholder="Client ID"
+                        value={clientId()}
+                        onChange={(e) => {
+                          const value = e.currentTarget.value;
+                          setClientId(value);
+                        }}
+                      />
+                      <Input
+                        type="password"
+                        placeholder="Client Secret"
+                        value={clientSecret()}
+                        onChange={(e) => {
+                          const value = e.currentTarget.value;
+                          setClientSecret(value);
+                        }}
+                      />
+                    </div>
+                    <div class="flex gap-2">
+                      <Button onClick={onSaveKeys}>{t("common.save")}</Button>
+                      <Button
+                        variant="destructive"
+                        onClick={onClearKeys}
+                        color="error"
+                      >
+                        {t("common.clear")}
+                      </Button>
+                    </div>
                   </div>
                 </AccordionContent>
               </AccordionItem>
