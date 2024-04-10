@@ -6,10 +6,6 @@ const AUTH_URL = "https://accounts.google.com/o/oauth2/auth";
 export const TOKEN_URL = "https://oauth2.googleapis.com/token";
 export const REDIRECT_PATH = "/login_popup.html";
 
-const locales: Record<string, {} | undefined> = {
-  en,
-};
-
 export const storage: Storage = {
   get length() {
     try {

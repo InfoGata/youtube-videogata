@@ -44,7 +44,6 @@ const App = () => {
   const [usePlayer, setUsePlayer] = createSignal(true);
   const [instance, setInstance] = createSignal("");
   const [locale, setLocale] = createSignal<Locale>("en");
-  const [videoUrls, setVideoUrls] = createSignal("");
 
   const dict = createMemo(() => i18n.flatten(dictionaries[locale()]));
 
