@@ -1,5 +1,4 @@
-import axios from "axios";
-import en from "./locales/en.json";
+import ky from "ky";
 
 const AUTH_SCOPE = "https://www.googleapis.com/auth/youtube.readonly";
 const AUTH_URL = "https://accounts.google.com/o/oauth2/auth";
@@ -162,12 +161,13 @@ export const getToken = async (
     params.append("client_id", clientId);
     params.append("client_secret", clientSecret);
   }
-  const result = await axios.post<TokenResponse>(tokenUrl, params, {
+  const result = await ky.post<TokenResponse>(tokenUrl, {
+    body: params,
     headers: {
       "Content-Type": "application/x-www-form-urlencoded",
     },
-  });
-  return result.data;
+  }).json();
+  return result;
 };
 
 export const getYoutubeVideoUrl = (apiId: string): string => {

@@ -1,4 +1,4 @@
-import axios from "axios";
+import ky from "ky";
 import { parse, toSeconds } from "iso8601-duration";
 import {
   getYoutubeChannelUrl,
@@ -6,11 +6,29 @@ import {
   getYoutubeVideoUrl,
   storage,
   TOKEN_URL,
+  TokenResponse,
 } from "./shared";
 
 const key = "AIzaSyCCwk2lWH7eyv_48Jimp3hBFhR7CFZkWhM";
-const http = axios.create();
-
+const http = ky.create({
+  hooks: {
+    beforeRequest: [
+      (request) => {
+        const token = storage.getItem("access_token");
+        if (token) request.headers.set("Authorization", `Bearer ${token}`);
+      },
+    ],
+    afterResponse: [
+      async (request, options, response) => {
+        if (response.status === 401) {
+          const accessToken = await refreshToken();
+          request.headers.set("Authorization", `Bearer ${accessToken}`);
+          return http(request, options);
+        }
+      },
+    ],
+  },
+});
 export const setTokens = (accessToken: string, refreshToken?: string) => {
   storage.setItem("access_token", accessToken);
   if (refreshToken) {
@@ -35,45 +53,18 @@ const refreshToken = async () => {
     params.append("client_secret", clientSecret);
   }
 
-  const result = await axios.post(tokenUrl, params, {
+  const result = await ky.post<TokenResponse>(tokenUrl, {
+    body: params,
     headers: {
       "Content-Type": "application/x-www-form-urlencoded",
     },
-  });
+  }).json();
 
-  if (result.data.access_token) {
-    setTokens(result.data.access_token);
-    return result.data.access_token as string;
+  if (result.access_token) {
+    setTokens(result.access_token);
+    return result.access_token as string;
   }
 };
-
-http.interceptors.request.use(
-  (config) => {
-    const token = storage.getItem("access_token");
-    if (token) {
-      config.headers["Authorization"] = "Bearer " + token;
-    }
-    return config;
-  },
-  (error) => {
-    Promise.reject(error);
-  }
-);
-
-http.interceptors.response.use(
-  (response) => {
-    return response;
-  },
-  async (error) => {
-    const originalRequest = error.config;
-    if (error.response.status === 401 && !originalRequest._retry) {
-      originalRequest._retry = true;
-      const accessToken = await refreshToken();
-      http.defaults.headers.common["Authorization"] = "Bearer " + accessToken;
-      return http(originalRequest);
-    }
-  }
-);
 
 export const getApiKey = () => {
   const apiKey = storage.getItem("apiKey");
@@ -170,11 +161,11 @@ export async function getTopItemsYoutube(): Promise<SearchAllResult> {
   const apiKey = getApiKey() || key;
   const urlWithQuery = `${url}?key=${apiKey}&chart=mostPopular&part=snippet,contentDetails`;
   const detailsResults =
-    await axios.get<GoogleAppsScript.YouTube.Schema.VideoListResponse>(
+    await ky.get<GoogleAppsScript.YouTube.Schema.VideoListResponse>(
       urlWithQuery
-    );
+    ).json();
   const videoResults: SearchVideoResult = {
-    items: resultToVideoYoutube(detailsResults.data),
+    items: resultToVideoYoutube(detailsResults),
   };
   return {
     videos: videoResults,
@@ -199,24 +190,24 @@ export async function searchVideosYoutube(
   }
 
   const results =
-    await axios.get<GoogleAppsScript.YouTube.Schema.SearchListResponse>(
+    await ky.get<GoogleAppsScript.YouTube.Schema.SearchListResponse>(
       urlWithQuery
-    );
+    ).json();
   const detailsUrl = "https://www.googleapis.com/youtube/v3/videos";
-  const ids = results.data.items?.map((i) => i.id?.videoId).join(",");
+  const ids = results.items?.map((i) => i.id?.videoId).join(",");
   const detailsUrlWithQuery = `${detailsUrl}?key=${getApiKey()}&part=snippet,contentDetails&id=${ids}`;
   const detailsResults =
-    await axios.get<GoogleAppsScript.YouTube.Schema.VideoListResponse>(
+    await ky.get<GoogleAppsScript.YouTube.Schema.VideoListResponse>(
       detailsUrlWithQuery
-    );
+    ).json();
   const videoResults: SearchVideoResult = {
-    items: resultToVideoYoutube(detailsResults.data),
+    items: resultToVideoYoutube(detailsResults),
     pageInfo: {
-      totalResults: results.data.pageInfo?.totalResults || 0,
-      resultsPerPage: results.data.pageInfo?.resultsPerPage || 0,
+      totalResults: results.pageInfo?.totalResults || 0,
+      resultsPerPage: results.pageInfo?.resultsPerPage || 0,
       offset: request.pageInfo ? request.pageInfo.offset : 0,
-      nextPage: results.data.nextPageToken,
-      prevPage: results.data.prevPageToken,
+      nextPage: results.nextPageToken,
+      prevPage: results.prevPageToken,
     },
   };
   return videoResults;
@@ -230,12 +221,12 @@ export async function searchChannelsYoutube(
     request.query
   )}`;
   const results =
-    await axios.get<GoogleAppsScript.YouTube.Schema.SearchListResponse>(
+    await ky.get<GoogleAppsScript.YouTube.Schema.SearchListResponse>(
       urlWithQuery
-    );
+    ).json();
 
   return {
-    items: channelSearchResultToChannel(results.data),
+    items: channelSearchResultToChannel(results),
   };
 }
 
@@ -256,17 +247,17 @@ export async function searchPlaylistsYoutube(
     }
   }
   const results =
-    await axios.get<GoogleAppsScript.YouTube.Schema.SearchListResponse>(
+    await ky.get<GoogleAppsScript.YouTube.Schema.SearchListResponse>(
       urlWithQuery
-    );
+    ).json();
   const playlistResults: SearchPlaylistResult = {
-    items: playlistSearchResultToPlaylist(results.data),
+    items: playlistSearchResultToPlaylist(results),
     pageInfo: {
-      totalResults: results.data.pageInfo?.totalResults || 0,
-      resultsPerPage: results.data.pageInfo?.resultsPerPage || 0,
+      totalResults: results.pageInfo?.totalResults || 0,
+      resultsPerPage: results.pageInfo?.resultsPerPage || 0,
       offset: request.pageInfo ? request.pageInfo.offset : 0,
-      nextPage: results.data.nextPageToken,
-      prevPage: results.data.prevPageToken,
+      nextPage: results.nextPageToken,
+      prevPage: results.prevPageToken,
     },
   };
   return playlistResults;
@@ -278,10 +269,10 @@ export async function getVideosFromVideosIds(ids: string[]) {
   const apiKey = getApiKey() || key;
   const detailsUrlWithQuery = `${detailsUrl}?key=${apiKey}&part=snippet,contentDetails&id=${idList}`;
   const detailsResults =
-    await axios.get<GoogleAppsScript.YouTube.Schema.VideoListResponse>(
+    await ky.get<GoogleAppsScript.YouTube.Schema.VideoListResponse>(
       detailsUrlWithQuery
-    );
-  return resultToVideoYoutube(detailsResults.data);
+    ).json();
+  return resultToVideoYoutube(detailsResults);
 }
 
 export async function getPlaylistVideosYoutube(
@@ -303,24 +294,24 @@ export async function getPlaylistVideosYoutube(
       urlWithQuery += `&pageToken=${request.pageInfo.prevPage}`;
     }
   }
-  const instance = request.isUserPlaylist ? http : axios;
+  const instance = request.isUserPlaylist ? http : ky;
   const result =
     await instance.get<GoogleAppsScript.YouTube.Schema.PlaylistItemListResponse>(
       urlWithQuery
-    );
+    ).json();
   const ids =
-    result.data.items
+    result.items
       ?.map((i) => i.contentDetails?.videoId)
       .filter((i): i is string => !!i) || [];
   const items = await getVideosFromVideosIds(ids);
   const videoResults: SearchVideoResult = {
     items: items,
     pageInfo: {
-      totalResults: result.data.pageInfo?.totalResults || 0,
-      resultsPerPage: result.data.pageInfo?.resultsPerPage || 0,
+      totalResults: result.pageInfo?.totalResults || 0,
+      resultsPerPage: result.pageInfo?.resultsPerPage || 0,
       offset: request.pageInfo ? request.pageInfo.offset : 0,
-      nextPage: result.data.nextPageToken,
-      prevPage: result.data.prevPageToken,
+      nextPage: result.nextPageToken,
+      prevPage: result.prevPageToken,
     },
   };
   return videoResults;
@@ -334,10 +325,10 @@ export async function getChannelVideos(
     request.apiId
   }&key=${getApiKey()}`;
   const results =
-    await axios.get<GoogleAppsScript.YouTube.Schema.ChannelListResponse>(
+    await ky.get<GoogleAppsScript.YouTube.Schema.ChannelListResponse>(
       urlWithQuery
-    );
-  const channels = results.data.items;
+    ).json();
+  const channels = results.items;
   const channelInfo = channels && channels[0];
   if (channelInfo) {
     const uploadsPlaylist =
@@ -362,15 +353,15 @@ export async function getUserPlaylistsYoutube(
   const result =
     await http.get<GoogleAppsScript.YouTube.Schema.PlaylistListResponse>(
       urlWithQuery
-    );
+    ).json();
   const playlistResults: SearchPlaylistResult = {
-    items: playlistResultToPlaylist(result.data),
+    items: playlistResultToPlaylist(result),
     pageInfo: {
-      totalResults: result.data.pageInfo?.totalResults || 0,
-      resultsPerPage: result.data.pageInfo?.resultsPerPage || 0,
+      totalResults: result.pageInfo?.totalResults || 0,
+      resultsPerPage: result.pageInfo?.resultsPerPage || 0,
       offset: request.pageInfo ? request.pageInfo.offset : 0,
-      nextPage: result.data.nextPageToken,
-      prevPage: result.data.prevPageToken,
+      nextPage: result.nextPageToken,
+      prevPage: result.prevPageToken,
     },
   };
   return playlistResults;

@@ -1,4 +1,4 @@
-import axios from "axios";
+import ky from "ky";
 import {
   getYoutubeChannelUrl,
   getYoutubePlaylistUrl,
@@ -125,15 +125,12 @@ interface InvidiousChannelVideos {
 
 export const fetchInstances = async () => {
   const instancesUrl = "https://api.invidious.io/instances.json";
-  const response = await axios.get<InvidiousInstance[]>(instancesUrl);
-  let instances = response.data;
+  let instances = await ky.get<InvidiousInstance[]>(instancesUrl).json();
   instances = instances.filter((instance) =>
     instance[0].includes(".onion") || instance[0].includes(".i2p")
       ? false
       : true
   );
-  // Only use instances that uses cors
-  instances = instances.filter((instance) => instance[1].cors);
   storage.setItem(StorageType.Instances, JSON.stringify(instances));
   return instances;
 };
@@ -162,15 +159,16 @@ export const getCurrentInstance = async (): Promise<string> => {
 };
 
 const sendRequest = async <T>(path: string) => {
+  const proxy = await application.getCorsProxy();
   let instance = await getCurrentInstance();
+  const url = `${instance}${path}`;
+  const urlWithProxy = `${proxy}${url}`;
   try {
-    const url = `${instance}${path}`;
-    const request = await axios.get<T>(url);
+    const request = await ky.get<T>(urlWithProxy).json();
     return request;
   } catch {
     instance = await getRandomInstance();
-    const url = `${instance}${path}`;
-    const request = await axios.get<T>(url);
+    const request = await ky.get<T>(urlWithProxy).json();
     return request;
   }
 };
@@ -179,8 +177,7 @@ export const getVideoFromApiIdInvidious = async (
   apiId: string
 ): Promise<Video> => {
   const path = `/api/v1/videos/${apiId}`;
-  const response = await sendRequest<InvidiousVideoReponse>(path);
-  const data = response.data;
+  const data = await sendRequest<InvidiousVideoReponse>(path);
   const video: Video = {
     title: data.title,
     apiId: apiId,
@@ -227,7 +224,7 @@ const invdiousSearchVideoToVideo = (result: InvidiousSearchVideo): Video => {
 export const getTrendingInvidious = async (): Promise<SearchAllResult> => {
   const path = `/api/v1/trending`;
   const response = await sendRequest<InvidiousSearchVideo[]>(path);
-  const videos = response.data.map(invdiousSearchVideoToVideo);
+  const videos = response.map(invdiousSearchVideoToVideo);
 
   const videoResults: SearchVideoResult = {
     items: videos,
@@ -268,7 +265,7 @@ export const searchVideosInvidious = async (
   }
 
   const response = await sendRequest<InvidiousSearchVideo[]>(path);
-  const videos = response.data.map(invdiousSearchVideoToVideo);
+  const videos = response.map(invdiousSearchVideoToVideo);
   const filterInfo: FilterInfo = {
     filters: [
       {
@@ -343,7 +340,7 @@ export const searchPlaylistsInvidious = async (
 
   const response = await sendRequest<InvidiousSearchPlaylist[]>(path);
 
-  const playlists = response.data.map(
+  const playlists = response.map(
     (d): PlaylistInfo => ({
       name: d.title,
       apiId: d.playlistId,
@@ -362,7 +359,7 @@ export const searchChannelsInvidious = async (request: SearchRequest) => {
   let path = `/api/v1/search?q=${request.query}&type=channel`;
   const response = await sendRequest<InvidiousSearchChannel[]>(path);
 
-  const channels = response.data.map(
+  const channels = response.map(
     (d): Channel => ({
       name: d.author,
       apiId: d.authorId,
@@ -393,8 +390,7 @@ export const getChannelVideosInvidious = async (
   request: ChannelVideosRequest
 ): Promise<ChannelVideosResult> => {
   const channelPath = `/api/v1/channels/${request.apiId}?field=author,authorId,authorThumbnails`;
-  const detailsResponse = await sendRequest<InvidiousChannel>(channelPath);
-  const channelResult = detailsResponse.data;
+  const channelResult = await sendRequest<InvidiousChannel>(channelPath);
   const channel: Channel = {
     name: channelResult.author,
     apiId: channelResult.authorId,
@@ -423,7 +419,7 @@ export const getChannelVideosInvidious = async (
     page.nextPage = "2";
   }
   const results = await sendRequest<InvidiousChannelVideos>(path);
-  const videos = results.data.videos.map(invdiousSearchVideoToVideo);
+  const videos = results.videos.map(invdiousSearchVideoToVideo);
 
   return {
     channel,
@@ -439,7 +435,7 @@ export const onGetInvidiousSearchSuggestions = async (
   const response = await sendRequest<{ query: string; suggestions: string[] }>(
     path
   );
-  return response.data.suggestions;
+  return response.suggestions;
 };
 
 interface InvidiousPlaylist {
@@ -466,8 +462,7 @@ export const getPlaylistVideosInvidious = async (
   request: PlaylistVideoRequest
 ): Promise<PlaylistVideosResult> => {
   let path = `/api/v1/playlists/${request.apiId}`;
-  const response = await sendRequest<InvidiousPlaylist>(path);
-  const result = response.data;
+  const result = await sendRequest<InvidiousPlaylist>(path);
   const playlist: PlaylistInfo = {
     name: result.title,
     apiId: result.playlistId,
@@ -500,7 +495,7 @@ export const getVideoCommentsfromInvidious = async (
     path = `${path}?continuation=${request.pageInfo.nextPage}`;
   }
   const response = await sendRequest<InvidiousComments>(path);
-  const comments = response.data.comments.map(
+  const comments = response.comments.map(
     (c): VideoComment => ({
       apiId: c.commentId,
       videoCommentId: request.apiId,
@@ -517,10 +512,10 @@ export const getVideoCommentsfromInvidious = async (
     })
   );
   const page: PageInfo = {
-    totalResults: response.data.commentCount || 0,
+    totalResults: response.commentCount || 0,
     resultsPerPage: 0,
     offset: 0,
-    nextPage: response.data.continuation,
+    nextPage: response.continuation,
   };
   return { comments: comments, pageInfo: page };
 };

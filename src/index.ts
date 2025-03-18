@@ -1,19 +1,16 @@
 import { MessageType, UiMessageType, storage } from "./shared";
 import {
-  getVideoCommentsfromInvidious,
+  getVideoFromApiIdPiped,
   getRandomInstance,
-  getVideoFromApiIdInvidious,
-  fetchInstances,
   getCurrentInstance,
-  getTrendingInvidious,
-  searchChannelsInvidious,
-  searchVideosInvidious,
-  searchPlaylistsInvidious,
-  getPlaylistVideosInvidious,
-  getChannelVideosInvidious,
-  onGetInvidiousSearchSuggestions,
-} from "./invidious";
-import { getVideoFromApiIdPiped } from "./piped";
+  onGetPipedSearchSuggestions,
+  getVideoCommentsPiped,
+  searchChannelsPiped,
+  searchPlaylistsPiped,
+  searchVideosPiped,
+  getPlaylistVideosPiped,
+  getChannelVideosPiped,
+} from "./piped";
 import {
   getPlaylistVideosYoutube,
   getTopItemsYoutube,
@@ -156,25 +153,25 @@ application.onUiMessage = async (message: UiMessageType) => {
 async function searchVideos(
   request: SearchRequest
 ): Promise<SearchVideoResult> {
-  return searchVideosInvidious(request);
+  return searchVideosPiped(request);
 }
 
 async function searchChannels(
   request: SearchRequest
 ): Promise<SearchChannelResult> {
-  return searchChannelsInvidious(request);
+  return searchChannelsPiped(request);
 }
 
 async function getChannelVideos(
   request: ChannelVideosRequest
 ): Promise<ChannelVideosResult> {
-  return getChannelVideosInvidious(request);
+  return getChannelVideosPiped(request);
 }
 
 async function searchPlaylists(
   request: SearchRequest
 ): Promise<SearchPlaylistResult> {
-  return searchPlaylistsInvidious(request);
+  return searchPlaylistsPiped(request);
 }
 
 async function getPlaylistVideos(
@@ -183,29 +180,25 @@ async function getPlaylistVideos(
   if (request.isUserPlaylist) {
     return getPlaylistVideosYoutube(request);
   }
-  return getPlaylistVideosInvidious(request);
+  return getPlaylistVideosPiped(request);
 }
 
 async function getTopItems(): Promise<SearchAllResult> {
-  try {
+  // try {
     return await getTopItemsYoutube();
-  } catch {
-    return await getTrendingInvidious();
-  }
+  // } catch {
+  //   return await getTrendingInvidious();
+  // }
 }
 
 async function getYoutubeVideo(request: GetVideoRequest): Promise<Video> {
-  const usePlayer = await getUsePlayer();
-  const result = usePlayer
-    ? getVideoFromApiIdInvidious(request.apiId)
-    : getVideoFromApiIdPiped(request.apiId);
-  return result;
+  return getVideoFromApiIdPiped(request.apiId);
 }
 
 async function getVideoComments(
   request: VideoCommentsRequest
 ): Promise<VideoCommentsResult> {
-  return getVideoCommentsfromInvidious(request);
+  return getVideoCommentsPiped(request);
 }
 
 async function getCommentReplies(
@@ -215,7 +208,7 @@ async function getCommentReplies(
     apiId: request.videoApiId,
     pageInfo: request.pageInfo,
   };
-  return getVideoCommentsfromInvidious(commentRequest);
+  return getVideoCommentsPiped(commentRequest);
 }
 
 async function searchAll(request: SearchRequest): Promise<SearchAllResult> {
@@ -256,7 +249,7 @@ export async function canParseUrl(
 }
 
 export async function getSuggestions(request: GetSearchSuggestionsRequest) {
-  return onGetInvidiousSearchSuggestions(request);
+  return onGetPipedSearchSuggestions(request);
 }
 
 application.onSearchAll = searchAll;
@@ -273,7 +266,7 @@ application.onGetVideo = getYoutubeVideo;
 application.onLookupPlaylistUrl = importPlaylist;
 application.onLookupVideoUrls = resolveUrls;
 application.onCanParseUrl = canParseUrl;
-application.onGetSearchSuggestions = getSuggestions;
+// application.onGetSearchSuggestions = getSuggestions;
 
 const changeTheme = (theme: Theme) => {
   localStorage.setItem("kb-color-mode", theme);
@@ -289,7 +282,7 @@ const init = async () => {
   if (accessToken) {
     application.onGetUserPlaylists = getUserPlaylistsYoutube;
   }
-  await fetchInstances();
+  // await fetchInstances();
 };
 
 init();
