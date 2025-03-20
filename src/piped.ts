@@ -221,7 +221,7 @@ export const fetchInstances = async () => {
   return instances;
 };
 
-export const getRandomInstance = async (): Promise<string> => {
+export const getInstance = async (): Promise<string> => {
   const instanceString = storage.getItem(StorageType.Instances);
   let instances: PipedInstance[] = [];
   if (instanceString) {
@@ -229,8 +229,7 @@ export const getRandomInstance = async (): Promise<string> => {
   } else {
     instances = await fetchInstances();
   }
-  const randomIndex = Math.floor(Math.random() * instances.length);
-  const newInstance = instances[randomIndex].api_url;
+  const newInstance = instances[0].api_url;
 
   storage.setItem(StorageType.CurrentInstance, newInstance);
   return newInstance;
@@ -247,7 +246,7 @@ const getAllInstances = async (): Promise<PipedInstance[]> => {
 export const getCurrentInstance = async (): Promise<string> => {
   let instance = storage.getItem(StorageType.CurrentInstance);
   if (!instance) {
-    instance = await getRandomInstance();
+    instance = await getInstance();
   }
   return instance;
 };
@@ -345,7 +344,7 @@ export const getVideoCommentsPiped = async (request: VideoCommentsRequest): Prom
 
 export const searchVideosPiped = async (request: SearchRequest): Promise<SearchVideoResult> => {
   const instance = await getCurrentInstance();
-  const url = `${instance}/search?q=${request.query}&filter=video`;
+  const url = `${instance}/search?q=${request.query}&filter=videos`;
   const response = await ky.get<PipedSearchResponse>(url).json();
   const items = response.items.filter((item): item is PipedVideoSearchItem => item.type === "stream").map((item): Video => {
       return {
@@ -371,7 +370,7 @@ export const searchVideosPiped = async (request: SearchRequest): Promise<SearchV
 
 export const searchPlaylistsPiped = async (request: SearchRequest): Promise<SearchPlaylistResult> => {
   const instance = await getCurrentInstance();
-  const url = `${instance}/search?q=${request.query}&filter=playlist`;
+  const url = `${instance}/search?q=${request.query}&filter=playlists`;
   const response = await ky.get<PipedSearchResponse>(url).json();
   const items = response.items.filter((item): item is PipedPlaylistSearchItem => item.type === "playlist").map((item): Playlist => {
     return {
@@ -394,7 +393,7 @@ export const searchPlaylistsPiped = async (request: SearchRequest): Promise<Sear
 
 export const searchChannelsPiped = async (request: SearchRequest): Promise<SearchChannelResult> => {
   const instance = await getCurrentInstance();
-  const url = `${instance}/search?q=${request.query}&filter=channel`;
+  const url = `${instance}/search?q=${request.query}&filter=channels`;
   const response = await ky.get<PipedSearchResponse>(url).json();
   const items = response.items.filter((item): item is PipedChannelSearchItem => item.type === "channel").map((item): Channel => {
     return {
@@ -416,7 +415,7 @@ export const searchChannelsPiped = async (request: SearchRequest): Promise<Searc
 
 export const getChannelVideosPiped = async (request: ChannelVideosRequest): Promise<ChannelVideosResult> => {
   const instance = await getCurrentInstance();
-  const url = `${instance}/channel/${request.apiId}/videos`;
+  const url = `${instance}/channel/${request.apiId}`;
   const response = await ky.get<PipedChannelVideos>(url).json();
   const videos = response.relatedStreams.map((v): Video => {
     return {
@@ -443,7 +442,7 @@ export const getChannelVideosPiped = async (request: ChannelVideosRequest): Prom
 
 export const getPlaylistVideosPiped = async (request: PlaylistVideoRequest): Promise<PlaylistVideosResult> => {
   const instance = await getCurrentInstance();
-  const url = `${instance}/playlist/${request.apiId}/videos`;
+  const url = `${instance}/playlists/${request.apiId}`;
   const response = await ky.get<PipedPlaylistVideos>(url).json();
   const videos = response.relatedStreams.map((v): Video => {
     return {

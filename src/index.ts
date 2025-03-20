@@ -1,7 +1,7 @@
 import { MessageType, UiMessageType, storage } from "./shared";
 import {
   getVideoFromApiIdPiped,
-  getRandomInstance,
+  getInstance,
   getCurrentInstance,
   onGetPipedSearchSuggestions,
   getVideoCommentsPiped,
@@ -136,7 +136,7 @@ application.onUiMessage = async (message: UiMessageType) => {
       application.endVideo();
       break;
     case "getinstnace":
-      const instance = await getRandomInstance();
+      const instance = await getInstance();
       sendMessage({ type: "sendinstance", instance });
       break;
     case "resolve-urls":
