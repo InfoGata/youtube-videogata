@@ -1,4 +1,5 @@
 import { canParseUrl } from "../src/index";
+import { application } from "./application";
 
 describe("index", () => {
   (global as any).application = {};
