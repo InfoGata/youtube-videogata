@@ -9,6 +9,7 @@ import {
   searchChannelsPiped,
   getChannelVideosPiped,
   getPlaylistVideosPiped,
+  getTrendingPiped,
 } from "../src/piped";
 
 describe("piped.ts integration tests", () => {
@@ -162,6 +163,27 @@ describe("piped.ts integration tests", () => {
       expect(result.items[0]).toHaveProperty("channelApiId");
       expect(result).toHaveProperty("pageInfo");
       expect(result.pageInfo).toHaveProperty("nextPage");
+    });
+  });
+
+  describe("getTrendingPiped", () => {
+    it("should fetch trending videos", async () => {
+      const result = await getTrendingPiped();
+      
+      expect(result).toHaveProperty("videos");
+      const videos = result.videos!;
+      expect(videos).toHaveProperty("items");
+      expect(Array.isArray(videos.items)).toBe(true);
+      expect(videos.items.length).toBeGreaterThan(0);
+      
+      const firstVideo = videos.items[0];
+      expect(firstVideo).toHaveProperty("title");
+      expect(firstVideo).toHaveProperty("apiId");
+      expect(firstVideo).toHaveProperty("images");
+      expect(firstVideo).toHaveProperty("duration");
+      expect(firstVideo).toHaveProperty("views");
+      expect(firstVideo).toHaveProperty("channelName");
+      expect(firstVideo).toHaveProperty("channelApiId");
     });
   });
 }); 

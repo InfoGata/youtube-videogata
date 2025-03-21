@@ -131,12 +131,12 @@ export const fetchInstances = async () => {
       ? false
       : true
   );
-  storage.setItem(StorageType.Instances, JSON.stringify(instances));
+  storage.setItem(StorageType.InvidiousInstances, JSON.stringify(instances));
   return instances;
 };
 
 export const getRandomInstance = async (): Promise<string> => {
-  const instanceString = storage.getItem(StorageType.Instances);
+  const instanceString = storage.getItem(StorageType.InvidiousInstances);
   let instances: InvidiousInstance[] = [];
   if (instanceString) {
     instances = JSON.parse(instanceString);
@@ -146,12 +146,12 @@ export const getRandomInstance = async (): Promise<string> => {
   const randomIndex = Math.floor(Math.random() * instances.length);
   const newInstance = instances[randomIndex][1].uri;
 
-  storage.setItem(StorageType.CurrentInstance, newInstance);
+  storage.setItem(StorageType.InvidiousCurrentInstance, newInstance);
   return newInstance;
 };
 
 export const getCurrentInstance = async (): Promise<string> => {
-  let instance = storage.getItem(StorageType.CurrentInstance);
+  let instance = storage.getItem(StorageType.InvidiousCurrentInstance);
   if (!instance) {
     instance = await getRandomInstance();
   }

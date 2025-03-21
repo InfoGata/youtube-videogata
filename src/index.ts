@@ -10,6 +10,8 @@ import {
   searchVideosPiped,
   getPlaylistVideosPiped,
   getChannelVideosPiped,
+  fetchInstances,
+  getTrendingPiped
 } from "./piped";
 import {
   getPlaylistVideosYoutube,
@@ -184,11 +186,11 @@ async function getPlaylistVideos(
 }
 
 async function getTopItems(): Promise<SearchAllResult> {
-  // try {
+  try {
     return await getTopItemsYoutube();
-  // } catch {
-  //   return await getTrendingInvidious();
-  // }
+  } catch {
+    return await getTrendingPiped();
+  }
 }
 
 async function getYoutubeVideo(request: GetVideoRequest): Promise<Video> {
@@ -282,7 +284,7 @@ const init = async () => {
   if (accessToken) {
     application.onGetUserPlaylists = getUserPlaylistsYoutube;
   }
-  // await fetchInstances();
+  await fetchInstances();
 };
 
 init();

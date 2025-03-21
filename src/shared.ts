@@ -113,8 +113,10 @@ type SendInstance = {
 export type MessageType = LoginType | InfoType | SendInstance;
 
 export const enum StorageType {
-  Instances = "instances",
-  CurrentInstance = "current-instance",
+  PipedInstances = "piped-instances",
+  PipedCurrentInstance = "piped-current-instance",
+  InvidiousInstances = "invidious-instances",
+  InvidiousCurrentInstance = "invidious-current-instance",
 }
 
 export interface TokenResponse {

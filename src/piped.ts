@@ -217,12 +217,12 @@ interface PipedPlaylistSearchItem {
 export const fetchInstances = async () => {
   const instancesUrl = "https://piped-instances.kavin.rocks/";
   const instances = await ky.get<PipedInstance[]>(instancesUrl).json();
-  storage.setItem(StorageType.Instances, JSON.stringify(instances));
+  storage.setItem(StorageType.PipedInstances, JSON.stringify(instances));
   return instances;
 };
 
 export const getInstance = async (): Promise<string> => {
-  const instanceString = storage.getItem(StorageType.Instances);
+  const instanceString = storage.getItem(StorageType.PipedInstances);
   let instances: PipedInstance[] = [];
   if (instanceString) {
     instances = JSON.parse(instanceString);
@@ -231,12 +231,12 @@ export const getInstance = async (): Promise<string> => {
   }
   const newInstance = instances[0].api_url;
 
-  storage.setItem(StorageType.CurrentInstance, newInstance);
+  storage.setItem(StorageType.PipedCurrentInstance, newInstance);
   return newInstance;
 };
 
 const getAllInstances = async (): Promise<PipedInstance[]> => {
-  const instanceString = storage.getItem(StorageType.Instances);
+  const instanceString = storage.getItem(StorageType.PipedInstances);
   if (instanceString) {
     return JSON.parse(instanceString);
   }
@@ -244,7 +244,7 @@ const getAllInstances = async (): Promise<PipedInstance[]> => {
 };
 
 export const getCurrentInstance = async (): Promise<string> => {
-  let instance = storage.getItem(StorageType.CurrentInstance);
+  let instance = storage.getItem(StorageType.PipedCurrentInstance);
   if (!instance) {
     instance = await getInstance();
   }
@@ -463,5 +463,29 @@ export const getPlaylistVideosPiped = async (request: PlaylistVideoRequest): Pro
   return {
     items: videos,
     pageInfo,
+  }
+}
+
+export const getTrendingPiped = async (): Promise<SearchAllResult> => {
+  const instance = await getCurrentInstance();
+  // TODO: get region from user
+  const region = "US";
+  const url = `${instance}/trending?region=${region}`;
+  const response = await ky.get<PipedRelatedStream[]>(url).json();
+  const items = response.map((v): Video => {
+    return {
+      title: v.title,
+      apiId: v.url.split("=").slice(-1)[0],
+      images: [{ url: v.thumbnail }],
+      duration: v.duration,
+      views: v.views,
+      channelName: v.uploaderName,
+      channelApiId: v.uploaderUrl?.split("/").slice(-1)[0],
+    }
+  })
+  return {
+    videos: {
+      items
+    }
   }
 }
