@@ -306,11 +306,16 @@ export async function getVideoFromApiIdPiped(
   }
 }
 
+interface PipedSearchSuggestionsResponse {
+  0: string;
+  1: string[];
+}
+
 export const onGetPipedSearchSuggestions = async (request: GetSearchSuggestionsRequest): Promise<string[]> => {
   const instance = await getCurrentInstance();
   const url = `${instance}/opensearch/suggestions?query=${request.query}`;
-  const response = await ky.get<string[]>(url).json();
-  return response;
+  const response = await ky.get<PipedSearchSuggestionsResponse>(url).json();
+  return response[1];
 };
 
 export const getVideoCommentsPiped = async (request: VideoCommentsRequest): Promise<VideoCommentsResult> => {

@@ -268,7 +268,7 @@ application.onGetVideo = getYoutubeVideo;
 application.onLookupPlaylistUrl = importPlaylist;
 application.onLookupVideoUrls = resolveUrls;
 application.onCanParseUrl = canParseUrl;
-// application.onGetSearchSuggestions = getSuggestions;
+application.onGetSearchSuggestions = getSuggestions;
 
 const changeTheme = (theme: Theme) => {
   localStorage.setItem("kb-color-mode", theme);
