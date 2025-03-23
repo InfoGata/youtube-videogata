@@ -34,7 +34,7 @@ describe("piped.ts integration tests", () => {
       expect(instance.startsWith("https://")).toBe(true);
     });
   });
-  jest
+
   describe("getCurrentInstance", () => {
     it("should return a valid instance URL", async () => {
       const instance = await getCurrentInstance();

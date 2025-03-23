@@ -126,44 +126,6 @@ interface PipedCommentsResponse {
   comments: PipedComments[];
 }
 
-interface PipedChannelResponse {
-  avatarUrl: string;
-  bannerUrl: string;
-  description: string;
-  id: string;
-  name: string;
-  nextpage: string;
-  relatedStreams: PipedRelatedStream[];
-  subscriberCount: number;
-  verified: boolean;
-}
-
-interface PipedPlaylistResponse {
-  bannerUrl: string;
-  name: string;
-  nextpage: string;
-  relatedStreams: PipedRelatedStream[];
-  thumbnailUrl: string;
-  uploader: string;
-  uploaderAvatar: string;
-  uploaderUrl: string;
-  videos: number;
-}
-
-interface PipedSponsorSegment {
-  UUID: string;
-  actionType: string;
-  category: string;
-  segment: [number, number];
-  videoDuration: number;
-}
-
-interface PipedSponsorResponse {
-  hash: string;
-  segments: PipedSponsorSegment[];
-  videoID: string;
-}
-
 interface PipedSearchResponse {
   items: (PipedChannelSearchItem | PipedVideoSearchItem | PipedPlaylistSearchItem)[];
   nextpage: string;
@@ -311,6 +273,16 @@ interface PipedSearchSuggestionsResponse {
   1: string[];
 }
 
+const relatedStreamToVideo = (stream: PipedRelatedStream): Video => ({
+  title: stream.title,
+  apiId: stream.url.split("=").slice(-1)[0],
+  images: [{ url: stream.thumbnail }],
+  duration: stream.duration,
+  views: stream.views,
+  channelName: stream.uploaderName,
+  channelApiId: stream.uploaderUrl?.split("/").slice(-1)[0],
+});
+
 export const onGetPipedSearchSuggestions = async (request: GetSearchSuggestionsRequest): Promise<string[]> => {
   const instance = await getCurrentInstance();
   const url = `${instance}/opensearch/suggestions?query=${request.query}`;
@@ -422,17 +394,7 @@ export const getChannelVideosPiped = async (request: ChannelVideosRequest): Prom
   const instance = await getCurrentInstance();
   const url = `${instance}/channel/${request.apiId}`;
   const response = await ky.get<PipedChannelVideos>(url).json();
-  const videos = response.relatedStreams.map((v): Video => {
-    return {
-      title: v.title,
-      apiId: v.url.split("=").slice(-1)[0],
-      images: [{ url: v.thumbnail }],
-      duration: v.duration,
-      views: v.views,
-      channelName: v.uploaderName,
-      channelApiId: v.uploaderUrl?.split("/").slice(-1)[0],
-    }
-  })
+  const videos = response.relatedStreams.map(relatedStreamToVideo);
   const pageInfo: PageInfo = {
     resultsPerPage: 0,
     offset: 0,
@@ -449,17 +411,7 @@ export const getPlaylistVideosPiped = async (request: PlaylistVideoRequest): Pro
   const instance = await getCurrentInstance();
   const url = `${instance}/playlists/${request.apiId}`;
   const response = await ky.get<PipedPlaylistVideos>(url).json();
-  const videos = response.relatedStreams.map((v): Video => {
-    return {
-      title: v.title,
-      apiId: v.url.split("=").slice(-1)[0],
-      images: [{ url: v.thumbnail }],
-      duration: v.duration,
-      views: v.views,
-      channelName: v.uploaderName,
-      channelApiId: v.uploaderUrl?.split("/").slice(-1)[0],
-    }
-  })
+  const videos = response.relatedStreams.map(relatedStreamToVideo);
   const pageInfo: PageInfo = {
     resultsPerPage: 0,
     offset: 0,
@@ -477,20 +429,10 @@ export const getTrendingPiped = async (): Promise<SearchAllResult> => {
   const region = "US";
   const url = `${instance}/trending?region=${region}`;
   const response = await ky.get<PipedRelatedStream[]>(url).json();
-  const items = response.map((v): Video => {
-    return {
-      title: v.title,
-      apiId: v.url.split("=").slice(-1)[0],
-      images: [{ url: v.thumbnail }],
-      duration: v.duration,
-      views: v.views,
-      channelName: v.uploaderName,
-      channelApiId: v.uploaderUrl?.split("/").slice(-1)[0],
-    }
-  })
+  const items = response.map(relatedStreamToVideo);
   return {
     videos: {
-      items
-    }
-  }
+      items,
+    },
+  };
 }
