@@ -1,11 +1,13 @@
-import fetch from "node-fetch";
-
 export const application = {
   networkRequest: function (
-    input: RequestInfo,
-    init?: RequestInit | undefined
+    input: string | URL | Request,
+    init?: RequestInit
   ): Promise<Response> {
-    return fetch(input as any, init as any) as any;
+    // Convert Request object to URL string if needed
+    if (input instanceof Request) {
+      input = input.url;
+    }
+    return globalThis.fetch(input, init);
   },
   isNetworkRequestCorsDisabled: async function (): Promise<boolean> {
     return true;

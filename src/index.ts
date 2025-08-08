@@ -20,6 +20,7 @@ import {
   getVideosFromVideosIds,
   setTokens,
 } from "./youtube";
+import { getPlaylistVideosInnertube, searchChannelsInnertube, searchVideosInnertube } from "./innertube-api";
 
 const sendMessage = (message: MessageType) => {
   application.postUiMessage(message);
@@ -155,12 +156,20 @@ application.onUiMessage = async (message: UiMessageType) => {
 async function searchVideos(
   request: SearchRequest
 ): Promise<SearchVideoResult> {
+  const corsDisabled = await application.isNetworkRequestCorsDisabled();
+  if (corsDisabled) {
+    return searchVideosInnertube(request);
+  }
   return searchVideosPiped(request);
 }
 
 async function searchChannels(
   request: SearchRequest
 ): Promise<SearchChannelResult> {
+  const corsDisabled = await application.isNetworkRequestCorsDisabled();
+  if (corsDisabled) {
+    return searchChannelsInnertube(request);
+  }
   return searchChannelsPiped(request);
 }
 
@@ -179,6 +188,10 @@ async function searchPlaylists(
 async function getPlaylistVideos(
   request: PlaylistVideoRequest
 ): Promise<PlaylistVideosResult> {
+  const corsDisabled = await application.isNetworkRequestCorsDisabled();
+  if (corsDisabled) {
+    return getPlaylistVideosInnertube(request);
+  }
   if (request.isUserPlaylist) {
     return getPlaylistVideosYoutube(request);
   }
