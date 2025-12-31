@@ -1,3 +1,5 @@
+import { vi, describe, it, expect, beforeEach } from 'vitest';
+
 // Mock the youtubei.js library to avoid network calls and URL parsing issues
 vi.mock('youtubei.js', () => {
   return {
@@ -93,7 +95,7 @@ describe('Innertube API', () => {
 
   describe('getTopInnerTubeItems', () => {
     it('should return top videos from home feed', async () => {
-      const result = await getTopInnerTubeItems() as SearchAllResult;
+      const result = await getTopInnerTubeItems();
       expect(result).toBeDefined();
       expect(result.videos).toBeDefined();
       if (result.videos) {

@@ -4,8 +4,10 @@
     "jsxImportSource": "preact",
     "module": "esnext",
     "target": "es2015",
-    "moduleResolution": "node",
-    "outDir": "./dist",
+    "moduleResolution": "bundler",
+    "noEmit": true,
+    "baseUrl": ".",
+    "skipLibCheck": true,
     "allowSyntheticDefaultImports": true,
     "resolveJsonModule": true,
     "strict": true,
@@ -16,11 +18,11 @@
       "es2017",
       "dom"
     ],
-    "baseUrl": ".",
     "paths": {
-      "~/*": [
-        "./src/*"
-      ]
+      "react": ["./node_modules/preact/compat/"],
+      "react-dom": ["./node_modules/preact/compat/"],
+      "react/jsx-runtime": ["./node_modules/preact/jsx-runtime"],
+      "~/*": ["./src/*"]
     },
     "typeRoots": [
       "./node_modules/@types",
@@ -28,7 +30,6 @@
     ]
   },
   "include": [
-    "src/**/*",
-    "test/**/*"
+    "src/**/*"
   ]
 }

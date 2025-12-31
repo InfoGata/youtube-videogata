@@ -25,7 +25,7 @@
     "youtubei.js": "^13.3.0"
   },
   "scripts": {
-    "build": "npm run build:options && npm run build:plugin && npm run build:player",
+    "build": "tsc && npm run build:options && npm run build:plugin && npm run build:player",
     "build:options": "vite build --config vite.config.ts",
     "build:plugin": "vite build --config plugin.vite.config.ts",
     "build:player": "vite build --config player.vite.config.ts",
@@ -40,7 +40,7 @@
     "jsdom": "^24.0.0",
     "process": "^0.11.10",
     "tailwindcss": "^4.0.0",
-    "typescript": "^4.2.3",
+    "typescript": "^5.0.0",
     "vite": "^6.2.4",
     "vitest": "^1.3.1"
   },

@@ -2,22 +2,24 @@ import {
   IBrowseResponse,
   Innertube,
   Mixins,
+  YTNodes,
 } from "youtubei.js";
-import {
-  AccountItem,
-  AccountItemSection,
-  LockupView,
-  type PlaylistPanelVideo,
-  type ReelItem,
-  type ShortsLockupView,
-  type WatchCardCompactVideo,
-} from "youtubei.js/dist/src/parser/nodes";
 
-declare global {
-  var application: {
-    networkRequest: typeof fetch;
-  };
-}
+type AccountItem = YTNodes.AccountItem;
+type AccountItemSection = YTNodes.AccountItemSection;
+type LockupView = YTNodes.LockupView;
+type PlaylistPanelVideo = YTNodes.PlaylistPanelVideo;
+type ReelItem = YTNodes.ReelItem;
+type ShortsLockupView = YTNodes.ShortsLockupView;
+type WatchCardCompactVideo = YTNodes.WatchCardCompactVideo;
+
+const getDurationSeconds = (duration: any): number => {
+  if (!duration) return 0;
+  if (typeof duration === 'object' && 'seconds' in duration) {
+    return duration.seconds ?? 0;
+  }
+  return 0;
+};
 
 type SearchAllResult = {
   videos?: SearchVideoResult;
@@ -98,7 +100,7 @@ export const getTopInnerTubeItems = async (): Promise<SearchAllResult> => {
       (v): Video => ({
         apiId: v.id,
         title: v.title.toString(),
-        duration: v.duration.seconds,
+        duration: getDurationSeconds(v.duration),
         channelName: v.author.name,
         channelApiId: v.author.id,
         images: v.thumbnails,
@@ -145,7 +147,7 @@ export const getUserPlaylistsInnertube = async (
   const youtube = await getInnertubeInstance();
   const accountInfo = await youtube.account.getInfo();
   const channelId: string = accountInfo.contents?.as(
-    AccountItemSection
+    YTNodes.AccountItemSection
   )?.contents.find(
     (c): c is AccountItem => c.type === "channel"
   )?.channel_handle.endpoint?.payload.browseId;
@@ -229,7 +231,7 @@ export const searchVideosInnertube = async (
     .map((i): Video => ({
       apiId: i.id,
       title: i.title.toString(),
-      duration: i.duration.seconds,
+      duration: getDurationSeconds(i.duration),
       channelName: i.author.name,
       channelApiId: i.author.id,
       images: i.thumbnails,

@@ -32,13 +32,7 @@ const validLocales = ["en"] as const;
 const isValidLocale = (value: unknown): value is Locale =>
   validLocales.includes(value as Locale);
 
-type NestedKeyOf<T extends object> = {
-  [K in keyof T]: T[K] extends object
-    ? `${K & string}.${NestedKeyOf<T[K]> & string}`
-    : K;
-}[keyof T];
-
-type TranslationKey = NestedKeyOf<Dict>;
+type TranslationKey = string;
 
 const getNestedValue = (obj: any, path: string): string => {
   return path.split(".").reduce((acc, part) => acc?.[part], obj) ?? path;
