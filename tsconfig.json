@@ -6,7 +6,6 @@
     "target": "es2015",
     "moduleResolution": "bundler",
     "noEmit": true,
-    "baseUrl": ".",
     "skipLibCheck": true,
     "allowSyntheticDefaultImports": true,
     "resolveJsonModule": true,
