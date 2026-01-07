@@ -6,7 +6,7 @@ import {
 } from "youtubei.js";
 
 type AccountItem = YTNodes.AccountItem;
-type AccountItemSection = YTNodes.AccountItemSection;
+type CompactVideo = YTNodes.CompactVideo;
 type LockupView = YTNodes.LockupView;
 type PlaylistPanelVideo = YTNodes.PlaylistPanelVideo;
 type ReelItem = YTNodes.ReelItem;
@@ -21,57 +21,6 @@ const getDurationSeconds = (duration: any): number => {
   return 0;
 };
 
-type SearchAllResult = {
-  videos?: SearchVideoResult;
-};
-
-type SearchVideoResult = {
-  items: Video[];
-};
-
-type SearchChannelResult = {
-  items: Channel[];
-};
-
-type SearchPlaylistResult = {
-  items: PlaylistInfo[];
-};
-
-type PlaylistVideosResult = {
-  items: Video[];
-};
-
-type Video = {
-  apiId: string;
-  title: string;
-  duration: number;
-  channelName: string;
-  channelApiId: string;
-  images: any[];
-};
-
-type Channel = {
-  apiId: string;
-  name: string;
-  images: any[];
-};
-
-type PlaylistInfo = {
-  apiId: string;
-  name: string;
-  images: any[];
-};
-
-type UserChannelRequest = any;
-type UserPlaylistRequest = any;
-type PlaylistVideoRequest = {
-  apiId?: string;
-  isUserPlaylist: boolean;
-};
-type SearchRequest = {
-  query: string;
-};
-
 let instance: Innertube | undefined;
 const getInnertubeInstance = async (): Promise<Innertube> => {
   if (!instance) {
@@ -83,7 +32,7 @@ const getInnertubeInstance = async (): Promise<Innertube> => {
   return instance;
 };
 
-export const getTopInnerTubeItems = async (): Promise<SearchAllResult> => {
+export const getTopItemsInnertube = async (): Promise<SearchAllResult> => {
   const youtube = await getInnertubeInstance();
   const home = await youtube.getHomeFeed();
 
@@ -113,7 +62,162 @@ export const getTopInnerTubeItems = async (): Promise<SearchAllResult> => {
   };
 };
 
-export const getUserChannelsInnerTube = async (
+export const getVideoFromApiIdInnertube = async (
+  apiId: string
+): Promise<Video> => {
+  const youtube = await getInnertubeInstance();
+  const info = await youtube.getInfo(apiId);
+  const basicInfo = info.basic_info;
+  const videoDetails = info.primary_info;
+  const channelInfo = info.secondary_info?.owner;
+
+  const relatedVideos = (info.watch_next_feed ?? [])
+    .filter((v): v is CompactVideo => v.type === "CompactVideo")
+    .map((v): Video => {
+      const vid = v as CompactVideo;
+      return {
+        apiId: vid.id,
+        title: vid.title.toString(),
+        duration: getDurationSeconds(vid.duration),
+        channelName: vid.author.name,
+        channelApiId: vid.author.id,
+        images: vid.thumbnails,
+      };
+    });
+
+  const video: Video = {
+    title: basicInfo.title ?? "",
+    apiId: apiId,
+    sources: info.streaming_data?.hls_manifest_url
+      ? [{ source: info.streaming_data.hls_manifest_url, type: "application/x-mpegURL" }]
+      : [],
+    duration: basicInfo.duration ?? 0,
+    views: basicInfo.view_count ?? 0,
+    likes: 0,
+    description: basicInfo.short_description ?? "",
+    channelName: channelInfo?.author?.name ?? "",
+    channelApiId: channelInfo?.author?.id ?? "",
+    uploadDate: videoDetails?.published?.text
+      ? new Date(videoDetails.published.text).toISOString()
+      : undefined,
+    recommendedVideos: relatedVideos,
+    images: basicInfo.thumbnail ?? [],
+  };
+  return video;
+};
+
+export const getSearchSuggestionsInnertube = async (
+  request: GetSearchSuggestionsRequest
+): Promise<string[]> => {
+  const youtube = await getInnertubeInstance();
+  const suggestions = await youtube.getSearchSuggestions(request.query);
+  return suggestions.map((s: string | { toString: () => string }) =>
+    typeof s === "string" ? s : s.toString()
+  );
+};
+
+export const getVideoCommentsInnertube = async (
+  request: VideoCommentsRequest
+): Promise<VideoCommentsResult> => {
+  if (!request.apiId) {
+    const pageInfo: PageInfo = {
+      resultsPerPage: 0,
+      offset: 0,
+    };
+    return {
+      comments: [],
+      pageInfo,
+    };
+  }
+
+  try {
+    const youtube = await getInnertubeInstance();
+    const comments = await youtube.getComments(request.apiId);
+
+    const videoComments: VideoComment[] = comments.contents
+      .filter((c: { type: string }): boolean => c.type === "CommentThread")
+      .map((thread: any): VideoComment => {
+        const comment = thread.comment;
+        return {
+          apiId: comment?.comment_id ?? "",
+          videoCommentId: request.apiId,
+          content: comment?.content?.toString() ?? "",
+          author: comment?.author?.name ?? "",
+          images: comment?.author?.thumbnails ?? [],
+          likes: comment?.vote_count?.text
+            ? parseInt(comment.vote_count.text.replace(/[^0-9]/g, "")) || 0
+            : 0,
+        };
+      });
+
+    const pageInfo: PageInfo = {
+      resultsPerPage: videoComments.length,
+      offset: 0,
+    };
+
+    return {
+      comments: videoComments,
+      pageInfo,
+    };
+  } catch {
+    // Comments may not be available for all videos
+    const pageInfo: PageInfo = {
+      resultsPerPage: 0,
+      offset: 0,
+    };
+    return {
+      comments: [],
+      pageInfo,
+    };
+  }
+};
+
+export const getChannelVideosInnertube = async (
+  request: ChannelVideosRequest
+): Promise<ChannelVideosResult> => {
+  if (!request.apiId) {
+    const pageInfo: PageInfo = {
+      resultsPerPage: 0,
+      offset: 0,
+    };
+    return {
+      items: [],
+      pageInfo,
+    };
+  }
+
+  const youtube = await getInnertubeInstance();
+  const channel = await youtube.getChannel(request.apiId);
+  const videosTab = await channel.getVideos();
+
+  const videos = videosTab.videos
+    .filter(
+      (v): v is Exclude<typeof v, ReelItem | PlaylistPanelVideo | WatchCardCompactVideo | ShortsLockupView> =>
+        "id" in v && "author" in v
+    )
+    .map(
+      (v): Video => ({
+        apiId: v.id,
+        title: v.title.toString(),
+        duration: getDurationSeconds(v.duration),
+        channelName: v.author.name,
+        channelApiId: v.author.id,
+        images: v.thumbnails,
+      })
+    );
+
+  const pageInfo: PageInfo = {
+    resultsPerPage: videos.length,
+    offset: 0,
+  };
+
+  return {
+    items: videos,
+    pageInfo,
+  };
+};
+
+export const getUserChannelsInnertube = async (
   _request: UserChannelRequest
 ): Promise<SearchChannelResult> => {
   const youtube = await getInnertubeInstance();
@@ -136,8 +240,15 @@ export const getUserChannelsInnerTube = async (
       images: c.author.thumbnails,
     })
   );
+
+  const pageInfo: PageInfo = {
+    resultsPerPage: channels.length,
+    offset: 0,
+  };
+
   return {
     items: channels,
+    pageInfo,
   };
 };
 
@@ -172,13 +283,25 @@ export const getUserPlaylistsInnertube = async (
       }
     );
 
+    const pageInfo: PageInfo = {
+      resultsPerPage: playlists.length,
+      offset: 0,
+    };
+
     return {
       items: playlists,
+      pageInfo,
     };
   }
 
+  const pageInfo: PageInfo = {
+    resultsPerPage: 0,
+    offset: 0,
+  };
+
   return {
     items: [],
+    pageInfo,
   };
 };
 
@@ -186,8 +309,18 @@ export const getPlaylistVideosInnertube = async (
   request: PlaylistVideoRequest
 ): Promise<PlaylistVideosResult> => {
   if (!request.apiId) {
+    const pageInfo: PageInfo = {
+      resultsPerPage: 0,
+      offset: 0,
+    };
     return {
       items: [],
+      pageInfo,
+      playlist: {
+        name: "",
+        apiId: "",
+        images: [],
+      },
     };
   }
   const youtube = await getInnertubeInstance();
@@ -205,15 +338,28 @@ export const getPlaylistVideosInnertube = async (
       (i): Video => ({
         apiId: i.id,
         title: i.title.toString(),
-        duration: i.duration.seconds,
+        duration: getDurationSeconds(i.duration),
         channelName: i.author.name,
         channelApiId: i.author.id,
         images: i.thumbnails,
       })
     );
 
+  const pageInfo: PageInfo = {
+    resultsPerPage: videos.length,
+    offset: 0,
+  };
+
+  const playlist: PlaylistInfo = {
+    name: feed.info.title ?? "",
+    apiId: request.apiId,
+    images: feed.info.thumbnails ?? [],
+  };
+
   return {
     items: videos,
+    pageInfo,
+    playlist,
   };
 };
 
@@ -236,8 +382,15 @@ export const searchVideosInnertube = async (
       channelApiId: i.author.id,
       images: i.thumbnails,
     }));
+
+  const pageInfo: PageInfo = {
+    resultsPerPage: videos.length,
+    offset: 0,
+  };
+
   return {
     items: videos,
+    pageInfo,
   };
 };
 
@@ -255,8 +408,15 @@ export const searchChannelsInnertube = async (
       images: c.author.thumbnails,
     })
   );
+
+  const pageInfo: PageInfo = {
+    resultsPerPage: channels.length,
+    offset: 0,
+  };
+
   return {
     items: channels,
+    pageInfo,
   };
 };
 
@@ -271,15 +431,22 @@ export const searchPlaylistsInnertube = async (
     .filter(
       (i): i is Exclude<typeof i, LockupView> => "id" in i && "author" in i
     )
-  .map(
-    (p): PlaylistInfo => ({
-      apiId: p.id,
-      name: p.title.toString(),
-      images: p.thumbnails,
-    })
-  );
+    .map(
+      (p): PlaylistInfo => ({
+        apiId: p.id,
+        name: p.title.toString(),
+        images: p.thumbnails,
+      })
+    );
+
+  const pageInfo: PageInfo = {
+    resultsPerPage: playlists.length,
+    offset: 0,
+  };
+
   return {
     items: playlists,
+    pageInfo,
   };
 };
 

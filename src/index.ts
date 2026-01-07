@@ -1,26 +1,22 @@
 import { MessageType, UiMessageType, storage } from "./shared";
 import {
-  getVideoFromApiIdPiped,
-  getInstance,
-  getCurrentInstance,
-  onGetPipedSearchSuggestions,
-  getVideoCommentsPiped,
-  searchChannelsPiped,
-  searchPlaylistsPiped,
-  searchVideosPiped,
-  getPlaylistVideosPiped,
-  getChannelVideosPiped,
-  fetchInstances,
-  getTrendingPiped
-} from "./piped";
-import {
   getPlaylistVideosYoutube,
   getTopItemsYoutube,
   getUserPlaylistsYoutube,
   getVideosFromVideosIds,
   setTokens,
 } from "./youtube";
-import { getPlaylistVideosInnertube, searchChannelsInnertube, searchVideosInnertube } from "./innertube-api";
+import {
+  getChannelVideosInnertube,
+  getPlaylistVideosInnertube,
+  getSearchSuggestionsInnertube,
+  getTopItemsInnertube,
+  getVideoCommentsInnertube,
+  getVideoFromApiIdInnertube,
+  searchChannelsInnertube,
+  searchPlaylistsInnertube,
+  searchVideosInnertube,
+} from "./innertube-api";
 
 const sendMessage = (message: MessageType) => {
   application.postUiMessage(message);
@@ -44,7 +40,6 @@ const sendInfo = async () => {
   const clientId = storage.getItem("clientId") ?? "";
   const clientSecret = storage.getItem("clientSecret") ?? "";
   const usePlayer = await getUsePlayer();
-  const instance = await getCurrentInstance();
   sendMessage({
     type: "info",
     origin: origin,
@@ -53,7 +48,7 @@ const sendInfo = async () => {
     clientId,
     clientSecret,
     usePlayer,
-    instance,
+    instance: "",
     locale,
     playlists,
   });
@@ -139,8 +134,8 @@ application.onUiMessage = async (message: UiMessageType) => {
       application.endVideo();
       break;
     case "getinstnace":
-      const instance = await getInstance();
-      sendMessage({ type: "sendinstance", instance });
+      // Innertube doesn't use instances, send empty string
+      sendMessage({ type: "sendinstance", instance: "" });
       break;
     case "resolve-urls":
       const videos = await resolveUrls(message.videoUrls.split("\n"));
@@ -156,64 +151,52 @@ application.onUiMessage = async (message: UiMessageType) => {
 async function searchVideos(
   request: SearchRequest
 ): Promise<SearchVideoResult> {
-  const corsDisabled = await application.isNetworkRequestCorsDisabled();
-  if (corsDisabled) {
-    return searchVideosInnertube(request);
-  }
-  return searchVideosPiped(request);
+  return searchVideosInnertube(request);
 }
 
 async function searchChannels(
   request: SearchRequest
 ): Promise<SearchChannelResult> {
-  const corsDisabled = await application.isNetworkRequestCorsDisabled();
-  if (corsDisabled) {
-    return searchChannelsInnertube(request);
-  }
-  return searchChannelsPiped(request);
+  return searchChannelsInnertube(request);
 }
 
 async function getChannelVideos(
   request: ChannelVideosRequest
 ): Promise<ChannelVideosResult> {
-  return getChannelVideosPiped(request);
+  return getChannelVideosInnertube(request);
 }
 
 async function searchPlaylists(
   request: SearchRequest
 ): Promise<SearchPlaylistResult> {
-  return searchPlaylistsPiped(request);
+  return searchPlaylistsInnertube(request);
 }
 
 async function getPlaylistVideos(
   request: PlaylistVideoRequest
 ): Promise<PlaylistVideosResult> {
-  const corsDisabled = await application.isNetworkRequestCorsDisabled();
-  if (corsDisabled) {
-    return getPlaylistVideosInnertube(request);
-  }
   if (request.isUserPlaylist) {
     return getPlaylistVideosYoutube(request);
   }
-  return getPlaylistVideosPiped(request);
+  return getPlaylistVideosInnertube(request);
 }
 
 async function getTopItems(): Promise<SearchAllResult> {
   try {
     return await getTopItemsYoutube();
   } catch {
-    return await getTrendingPiped();
+    return await getTopItemsInnertube();
   }
 }
 
 async function getYoutubeVideo(request: GetVideoRequest): Promise<Video> {
-  return getVideoFromApiIdPiped(request.apiId);
+  return getVideoFromApiIdInnertube(request.apiId);
 }
 
 async function getVideoComments(
   request: VideoCommentsRequest
 ): Promise<VideoCommentsResult> {
-  return getVideoCommentsPiped(request);
+  return getVideoCommentsInnertube(request);
 }
 
 async function getCommentReplies(
@@ -223,7 +206,7 @@ async function getCommentReplies(
     apiId: request.videoApiId,
     pageInfo: request.pageInfo,
   };
-  return getVideoCommentsPiped(commentRequest);
+  return getVideoCommentsInnertube(commentRequest);
 }
 
 async function searchAll(request: SearchRequest): Promise<SearchAllResult> {
@@ -264,7 +247,7 @@ export async function canParseUrl(
 }
 
 export async function getSuggestions(request: GetSearchSuggestionsRequest) {
-  return onGetPipedSearchSuggestions(request);
+  return getSearchSuggestionsInnertube(request);
 }
 
 application.onSearchAll = searchAll;
@@ -297,7 +280,6 @@ const init = async () => {
   if (accessToken) {
     application.onGetUserPlaylists = getUserPlaylistsYoutube;
   }
-  await fetchInstances();
 };
 
 init();
