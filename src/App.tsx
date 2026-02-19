@@ -247,7 +247,10 @@ const App = () => {
           <Checkbox
             id="player"
             checked={usePlayer}
-            onCheckedChange={(checked: boolean) => setUsePlayer(checked)}
+            onCheckedChange={(checked: boolean) => {
+              setUsePlayer(checked);
+              sendUiMessage({ type: "useplayer", usePlayer: checked });
+            }}
           />
           <div className="grid gap1.5 leading-none">
             {t("common.useYoutubePlayer")}
