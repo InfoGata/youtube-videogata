@@ -89,6 +89,10 @@ const App = () => {
         case "sendinstance":
           setInstance(event.data.instance);
           break;
+        case "reload-player-response":
+          break;
+        case "proxy-fetch-response":
+          break;
         default:
           const _exhaustive: never = event.data;
           break;

@@ -1,4 +1,10 @@
-import { MessageType, UiMessageType, storage } from "./shared";
+import {
+  MessageType,
+  UiMessageType,
+  arrayBufferToBase64,
+  base64ToArrayBuffer,
+  storage,
+} from "./shared";
 import {
   getPlaylistVideosYoutube,
   getTopItemsYoutube,
@@ -13,6 +19,7 @@ import {
   getTopItemsInnertube,
   getVideoCommentsInnertube,
   getVideoFromApiIdInnertube,
+  reloadPlayerResponse,
   searchChannelsInnertube,
   searchPlaylistsInnertube,
   searchVideosInnertube,
@@ -20,11 +27,6 @@ import {
 
 const sendMessage = (message: MessageType) => {
   application.postUiMessage(message);
-};
-
-const getUsePlayer = async () => {
-  const usePlayerString = storage.getItem("usePlayer");
-  return !usePlayerString || usePlayerString === "true";
 };
 
 const sendInfo = async () => {
@@ -39,7 +41,8 @@ const sendInfo = async () => {
   const apiKey = storage.getItem("apiKey") ?? "";
   const clientId = storage.getItem("clientId") ?? "";
   const clientSecret = storage.getItem("clientSecret") ?? "";
-  const usePlayer = await getUsePlayer();
+  const usePlayerString = storage.getItem("usePlayer");
+  const usePlayer = !usePlayerString || usePlayerString === "true";
   sendMessage({
     type: "info",
     origin: origin,
@@ -141,6 +144,54 @@ application.onUiMessage = async (message: UiMessageType) => {
       const videos = await resolveUrls(message.videoUrls.split("\n"));
       await application.addVideosToPlaylist(message.playlistId, videos);
       application.createNotification({ message: "Success!" });
+      break;
+    case "reload-player-request":
+      const reloadResult = await reloadPlayerResponse(
+        message.videoId,
+        message.reloadContext
+      );
+      sendMessage({
+        type: "reload-player-response",
+        streamingUrl: reloadResult.streamingUrl,
+        ustreamerConfig: reloadResult.ustreamerConfig,
+      });
+      break;
+    case "proxy-fetch-request":
+      try {
+        const fetchInit: RequestInit = {
+          method: message.method,
+          headers: message.headers,
+        };
+        if (message.body) {
+          fetchInit.body = new Uint8Array(base64ToArrayBuffer(message.body));
+        }
+        const fetchResponse = await application.networkRequest(
+          message.url,
+          fetchInit
+        );
+        const responseBuffer = await fetchResponse.arrayBuffer();
+        const responseHeaders: Record<string, string> = {};
+        fetchResponse.headers.forEach((value: string, key: string) => {
+          responseHeaders[key] = value;
+        });
+        sendMessage({
+          type: "proxy-fetch-response",
+          requestId: message.requestId,
+          status: fetchResponse.status,
+          statusText: fetchResponse.statusText,
+          headers: responseHeaders,
+          body: arrayBufferToBase64(responseBuffer),
+        });
+      } catch (err: any) {
+        sendMessage({
+          type: "proxy-fetch-response",
+          requestId: message.requestId,
+          status: 0,
+          statusText: "",
+          headers: {},
+          body: "",
+        });
+      }
       break;
     default:
       const _exhaustive: never = message;
@@ -259,7 +310,6 @@ application.onGetPlaylistVideos = getPlaylistVideos;
 application.onGetVideoComments = getVideoComments;
 application.onGetCommentReplies = getCommentReplies;
 application.onGetTopItems = getTopItems;
-application.onUsePlayer = getUsePlayer;
 application.onGetVideo = getYoutubeVideo;
 application.onLookupPlaylistUrl = importPlaylist;
 application.onLookupVideoUrls = resolveUrls;

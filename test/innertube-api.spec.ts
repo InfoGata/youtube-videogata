@@ -1,10 +1,76 @@
 import { vi, describe, it, expect, beforeEach } from 'vitest';
 
+// Mock googlevideo/utils
+vi.mock('googlevideo/utils', () => ({
+  buildSabrFormat: vi.fn((format: any) => format),
+}));
+
 // Mock the youtubei.js library to avoid network calls and URL parsing issues
 vi.mock('youtubei.js', () => {
+  const mockVideoInfo = {
+    basic_info: {
+      title: 'Video Title',
+      duration: 300,
+      view_count: 1000,
+      short_description: 'Video description',
+      thumbnail: [{ url: 'thumb.jpg' }],
+      is_live: false,
+      is_post_live_dvr: false,
+      is_live_content: false,
+    },
+    streaming_data: {
+      server_abr_streaming_url: 'https://example.com/sabr',
+      adaptive_formats: [],
+      hls_manifest_url: undefined,
+      dash_manifest_url: undefined,
+    },
+    player_config: {
+      media_common_config: {
+        media_ustreamer_request_config: {
+          video_playback_ustreamer_config: 'test-config',
+        },
+      },
+    },
+    playability_status: { status: 'OK' },
+    toDash: vi.fn().mockResolvedValue('<MPD></MPD>'),
+  };
+
   return {
+    Platform: {
+      shim: {
+        eval: undefined as any,
+      },
+    },
+    Constants: {
+      CLIENT_NAME_IDS: {
+        WEB: '1',
+      },
+    },
+    Utils: {
+      generateRandomString: vi.fn().mockReturnValue('mock-cpn-string'),
+    },
+    YT: {
+      VideoInfo: vi.fn().mockReturnValue(mockVideoInfo),
+    },
     Innertube: {
       create: vi.fn().mockResolvedValue({
+        session: {
+          player: {
+            signature_timestamp: 12345,
+            decipher: vi.fn().mockResolvedValue('https://example.com/deciphered-sabr'),
+          },
+          context: {
+            client: {
+              osName: 'Windows',
+              osVersion: '10.0',
+              clientName: 'WEB',
+              clientVersion: '2.0',
+            },
+          },
+        },
+        actions: {
+          execute: vi.fn().mockResolvedValue({ data: 'mock-player-response' }),
+        },
         getHomeFeed: vi.fn().mockResolvedValue({
           videos: [
             {
@@ -240,13 +306,11 @@ describe('Innertube API', () => {
       expect(result).toHaveProperty('channelApiId', 'channel-id');
     });
 
-    it('should include HLS source when available', async () => {
+    it('should return empty sources (SABR data stored separately)', async () => {
       const result = await getVideoFromApiIdInnertube('test-video-id');
 
       expect(result.sources).toBeDefined();
-      expect(result.sources?.length).toBeGreaterThan(0);
-      expect(result.sources?.[0].source).toBe('https://example.com/manifest.m3u8');
-      expect(result.sources?.[0].type).toBe('application/x-mpegURL');
+      expect(result.sources).toEqual([]);
     });
 
     it('should include recommended videos', async () => {
@@ -494,4 +558,4 @@ describe('Innertube API', () => {
       expect(result.items[0].name).toContain('workout');
     });
   });
-}); 
+});

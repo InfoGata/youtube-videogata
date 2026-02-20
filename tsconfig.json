@@ -12,10 +12,9 @@
     "strict": true,
     "allowJs": true,
     "lib": [
-      "es6",
-      "es7",
-      "es2017",
-      "dom"
+      "ES2020",
+      "DOM",
+      "DOM.Iterable"
     ],
     "paths": {
       "react": ["./node_modules/preact/compat/"],

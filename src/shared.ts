@@ -76,6 +76,19 @@ type UiResolveUrls = {
   videoUrls: string;
   playlistId: string;
 };
+type UiReloadPlayerRequestType = {
+  type: "reload-player-request";
+  videoId: string;
+  reloadContext: any;
+};
+type UiProxyFetchRequestType = {
+  type: "proxy-fetch-request";
+  requestId: string;
+  url: string;
+  method: string;
+  headers: Record<string, string>;
+  body?: string;
+};
 
 export type UiMessageType =
   | UiCheckLoginType
@@ -85,7 +98,9 @@ export type UiMessageType =
   | UiUsePlayerType
   | UiEndVideoType
   | UiGetInstanceType
-  | UiResolveUrls;
+  | UiResolveUrls
+  | UiReloadPlayerRequestType
+  | UiProxyFetchRequestType;
 
 type LoginType = {
   type: "login";
@@ -110,7 +125,27 @@ type SendInstance = {
   instance: string;
 };
 
-export type MessageType = LoginType | InfoType | SendInstance;
+type ReloadPlayerResponseType = {
+  type: "reload-player-response";
+  streamingUrl: string;
+  ustreamerConfig?: string;
+};
+
+type ProxyFetchResponseType = {
+  type: "proxy-fetch-response";
+  requestId: string;
+  status: number;
+  statusText: string;
+  headers: Record<string, string>;
+  body: string;
+};
+
+export type MessageType =
+  | LoginType
+  | InfoType
+  | SendInstance
+  | ReloadPlayerResponseType
+  | ProxyFetchResponseType;
 
 export const enum StorageType {
   PipedInstances = "piped-instances",
@@ -183,3 +218,40 @@ export const getYoutubePlaylistUrl = (apiId: string) => {
 export const getYoutubeChannelUrl = (apiId: string) => {
   return `https://www.youtube.com/channel/${apiId}`;
 };
+
+export function arrayBufferToBase64(buffer: ArrayBuffer): string {
+  const bytes = new Uint8Array(buffer);
+  let binary = "";
+  for (let i = 0; i < bytes.length; i++) {
+    binary += String.fromCharCode(bytes[i]);
+  }
+  return btoa(binary);
+}
+
+export function base64ToArrayBuffer(base64: string): ArrayBuffer {
+  const binary = atob(base64);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) {
+    bytes[i] = binary.charCodeAt(i);
+  }
+  return bytes.buffer;
+}
+
+export const SABR_DATA_KEY = "sabrData";
+export interface SabrData {
+  manifest: string;
+  streamingUrl: string;
+  formats: any[];
+  ustreamerConfig?: string;
+  clientInfo: {
+    osName: string;
+    osVersion: string;
+    clientName: number;
+    clientVersion: string;
+  };
+  videoId: string;
+  title: string;
+  isLive: boolean;
+  isPostLiveDVR: boolean;
+  liveManifestUrl?: string;
+}
