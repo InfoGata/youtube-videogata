@@ -50,7 +50,7 @@ vi.mock('youtubei.js', () => {
       generateRandomString: vi.fn().mockReturnValue('mock-cpn-string'),
     },
     YT: {
-      VideoInfo: vi.fn().mockReturnValue(mockVideoInfo),
+      VideoInfo: vi.fn().mockImplementation(function () { return mockVideoInfo; }),
     },
     Innertube: {
       create: vi.fn().mockResolvedValue({
