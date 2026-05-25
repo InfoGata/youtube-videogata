@@ -7,5 +7,10 @@
   "player": "dist/player.html",
   "description": "Plugin for playing videos from youtube.com",
   "updateUrl": "https://cdn.jsdelivr.net/gh/InfoGata/youtube-videogata@latest/manifest.json",
-  "homepage": "https://github.com/InfoGata/youtube-videogata"
+  "homepage": "https://github.com/InfoGata/youtube-videogata",
+  "siteMatch": [
+    "https://www.youtube.com/*",
+    "https://youtube.com/*",
+    "https://m.youtube.com/*"
+  ]
 }
