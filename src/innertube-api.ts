@@ -1,5 +1,6 @@
 import {
   Constants,
+  Helpers,
   IBrowseResponse,
   Innertube,
   Mixins,
@@ -10,15 +11,16 @@ import {
 } from "youtubei.js";
 import type { Types } from "youtubei.js";
 import { buildSabrFormat } from "googlevideo/utils";
+import {
+  isLockupView,
+  LockupAuthor,
+  lockupToPlaylistInfo,
+  lockupToVideo,
+} from "./lockup";
 import { SABR_DATA_KEY, SabrData, storage } from "./shared";
 
 type AccountItem = YTNodes.AccountItem;
 type CompactVideo = YTNodes.CompactVideo;
-type LockupView = YTNodes.LockupView;
-type PlaylistPanelVideo = YTNodes.PlaylistPanelVideo;
-type ReelItem = YTNodes.ReelItem;
-type ShortsLockupView = YTNodes.ShortsLockupView;
-type WatchCardCompactVideo = YTNodes.WatchCardCompactVideo;
 
 const getDurationSeconds = (duration: any): number => {
   if (!duration) return 0;
@@ -27,6 +29,81 @@ const getDurationSeconds = (duration: any): number => {
   }
   return 0;
 };
+
+/** The pre-lockup renderer nodes: `Video`, `CompactVideo`, `PlaylistVideo`, … */
+type LegacyVideoNode = {
+  id: string;
+  title: { toString: () => string };
+  duration?: unknown;
+  author: { name?: string; id?: string };
+  thumbnails?: ImageInfo[];
+};
+
+const asLegacyVideo = (node: Helpers.YTNode): LegacyVideoNode | null => {
+  const candidate = node as unknown as Partial<LegacyVideoNode>;
+  if (typeof candidate.id !== "string" || !candidate.author || !candidate.title)
+    return null;
+  return candidate as LegacyVideoNode;
+};
+
+/**
+ * `Feed#playlists` gained `LockupView` support upstream, but `Feed#videos` and
+ * `Playlist#items` still collect only the legacy renderer nodes, so a fully
+ * migrated page looks empty through them. Pull the video lockups off the feed's
+ * memo instead. Non-video lockups on the page (related playlists and the like)
+ * come along too and get dropped by `lockupToVideo`.
+ */
+const withVideoLockups = (
+  nodes: Helpers.YTNode[],
+  feed: { memo?: Helpers.Memo }
+): Helpers.YTNode[] => {
+  const lockups = feed.memo?.getType?.(YTNodes.LockupView) ?? [];
+  return lockups.length > 0 ? [...nodes, ...lockups] : nodes;
+};
+
+/**
+ * Feeds return either the legacy renderer nodes or the newer `LockupView`, and
+ * a single response can mix the two, so every video list goes through here.
+ */
+const toVideos = (
+  nodes: Helpers.YTNode[],
+  fallback: LockupAuthor = {}
+): Video[] =>
+  nodes
+    .map((node): Video | null => {
+      if (isLockupView(node)) return lockupToVideo(node, fallback);
+      const legacy = asLegacyVideo(node);
+      if (!legacy) return null;
+      return {
+        apiId: legacy.id,
+        title: legacy.title.toString(),
+        duration: getDurationSeconds(legacy.duration),
+        channelName: legacy.author.name,
+        channelApiId: legacy.author.id,
+        images: legacy.thumbnails ?? [],
+      };
+    })
+    .filter((video): video is Video => video !== null);
+
+const toPlaylistInfos = (nodes: Helpers.YTNode[]): PlaylistInfo[] =>
+  nodes
+    .map((node): PlaylistInfo | null => {
+      if (isLockupView(node)) return lockupToPlaylistInfo(node);
+      if ("id" in node && "title" in node && "thumbnails" in node) {
+        const legacy = node as unknown as {
+          id: string;
+          title: { toString: () => string };
+          thumbnails?: ImageInfo[];
+        };
+        return {
+          apiId: legacy.id,
+          name: legacy.title.toString(),
+          images: legacy.thumbnails ?? [],
+        };
+      }
+      return null;
+    })
+    .filter((playlist): playlist is PlaylistInfo => playlist !== null);
 
 Platform.shim.eval = async (
   data: Types.BuildScriptResult,
@@ -64,28 +141,7 @@ export const getTopItemsInnertube = async (): Promise<SearchAllResult> => {
   const youtube = await getInnertubeInstance();
   const home = await youtube.getHomeFeed();
 
-  const videos = home.videos
-    .filter(
-      (
-        v
-      ): v is Exclude<
-        typeof v,
-        | ReelItem
-        | PlaylistPanelVideo
-        | WatchCardCompactVideo
-        | ShortsLockupView
-      > => "thumbnails" in v && "author" in v
-    )
-    .map(
-      (v): Video => ({
-        apiId: v.id,
-        title: v.title.toString(),
-        duration: getDurationSeconds(v.duration),
-        channelName: v.author.name,
-        channelApiId: v.author.id,
-        images: v.thumbnails,
-      })
-    );
+  const videos = toVideos(withVideoLockups(home.videos, home));
   return {
     videos: {
       items: videos,
@@ -347,28 +403,12 @@ export const getChannelVideosInnertube = async (
   const channel = await youtube.getChannel(request.apiId);
   const videosTab = await channel.getVideos();
 
-  const videos = videosTab.videos
-    .filter(
-      (
-        v
-      ): v is Exclude<
-        typeof v,
-        | ReelItem
-        | PlaylistPanelVideo
-        | WatchCardCompactVideo
-        | ShortsLockupView
-      > => "id" in v && "author" in v
-    )
-    .map(
-      (v): Video => ({
-        apiId: v.id,
-        title: v.title.toString(),
-        duration: getDurationSeconds(v.duration),
-        channelName: v.author.name,
-        channelApiId: v.author.id,
-        images: v.thumbnails,
-      })
-    );
+  // A channel's own video tab omits the author from each lockup, so supply the
+  // channel being browsed.
+  const videos = toVideos(withVideoLockups(videosTab.videos, videosTab), {
+    channelName: channel.metadata?.title,
+    channelApiId: request.apiId,
+  });
 
   const pageInfo: PageInfo = {
     resultsPerPage: videos.length,
@@ -426,20 +466,7 @@ export const getUserPlaylistsInnertube = async (
   const channel = await youtube.getChannel(channelId);
   if (channel.has_playlists) {
     const playlistChannel = await channel.getPlaylists();
-    const playlists = playlistChannel.playlists.map((p): PlaylistInfo => {
-      if ("title" in p && "id" in p && "thumbnails" in p) {
-        return {
-          name: p.title.toString(),
-          apiId: p.id,
-          images: p.thumbnails,
-        };
-      }
-      return {
-        name: "",
-        apiId: "",
-        images: [],
-      };
-    });
+    const playlists = toPlaylistInfos(playlistChannel.playlists);
 
     const pageInfo: PageInfo = {
       resultsPerPage: playlists.length,
@@ -483,28 +510,7 @@ export const getPlaylistVideosInnertube = async (
   }
   const youtube = await getInnertubeInstance();
   const feed = await youtube.getPlaylist(request.apiId);
-  const videos = feed.items
-    .filter(
-      (
-        i
-      ): i is Exclude<
-        typeof i,
-        | PlaylistPanelVideo
-        | WatchCardCompactVideo
-        | ReelItem
-        | ShortsLockupView
-      > => "id" in i && "author" in i
-    )
-    .map(
-      (i): Video => ({
-        apiId: i.id,
-        title: i.title.toString(),
-        duration: getDurationSeconds(i.duration),
-        channelName: i.author.name,
-        channelApiId: i.author.id,
-        images: i.thumbnails,
-      })
-    );
+  const videos = toVideos(withVideoLockups(feed.items, feed));
 
   const pageInfo: PageInfo = {
     resultsPerPage: videos.length,
@@ -531,29 +537,7 @@ export const searchVideosInnertube = async (
   const response = await youtube.search(request.query, {
     type: "video",
   });
-  const videos = response.videos
-    .filter(
-      (
-        i
-      ): i is Exclude<
-        typeof i,
-        | ShortsLockupView
-        | PlaylistPanelVideo
-        | WatchCardCompactVideo
-        | ReelItem
-        | ShortsLockupView
-      > => "id" in i && "author" in i
-    )
-    .map(
-      (i): Video => ({
-        apiId: i.id,
-        title: i.title.toString(),
-        duration: getDurationSeconds(i.duration),
-        channelName: i.author.name,
-        channelApiId: i.author.id,
-        images: i.thumbnails,
-      })
-    );
+  const videos = toVideos(withVideoLockups(response.videos, response));
 
   const pageInfo: PageInfo = {
     resultsPerPage: videos.length,
@@ -599,17 +583,7 @@ export const searchPlaylistsInnertube = async (
   const response = await youtube.search(request.query, {
     type: "playlist",
   });
-  const playlists = response.playlists
-    .filter(
-      (i): i is Exclude<typeof i, LockupView> => "id" in i && "author" in i
-    )
-    .map(
-      (p): PlaylistInfo => ({
-        apiId: p.id,
-        name: p.title.toString(),
-        images: p.thumbnails,
-      })
-    );
+  const playlists = toPlaylistInfos(response.playlists);
 
   const pageInfo: PageInfo = {
     resultsPerPage: playlists.length,
