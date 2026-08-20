@@ -14,6 +14,7 @@ import {
 } from "./youtube";
 import {
   getChannelVideosInnertube,
+  getCommentRepliesInnertube,
   getPlaylistVideosInnertube,
   getSearchSuggestionsInnertube,
   getTopItemsInnertube,
@@ -253,11 +254,7 @@ async function getVideoComments(
 async function getCommentReplies(
   request: CommentReplyRequest
 ): Promise<VideoCommentsResult> {
-  const commentRequest: VideoCommentsRequest = {
-    apiId: request.videoApiId,
-    pageInfo: request.pageInfo,
-  };
-  return getVideoCommentsInnertube(commentRequest);
+  return getCommentRepliesInnertube(request);
 }
 
 async function searchAll(request: SearchRequest): Promise<SearchAllResult> {

@@ -330,58 +330,170 @@ export const getSearchSuggestionsInnertube = async (
   );
 };
 
+/**
+ * YouTube only sends abbreviated counts on comments ("204K", "1.2M"), so
+ * expand them back into the numbers the app expects.
+ */
+const parseCommentCount = (value?: string): number => {
+  if (!value) return 0;
+  const match = /([\d.,]+)\s*([KMB])?/i.exec(value);
+  if (!match) return 0;
+  const amount = parseFloat(match[1].replace(/,/g, ""));
+  if (Number.isNaN(amount)) return 0;
+  const multipliers: Record<string, number> = { k: 1e3, m: 1e6, b: 1e9 };
+  return Math.round(amount * (multipliers[match[2]?.toLowerCase() ?? ""] ?? 1));
+};
+
+/**
+ * A continuation item either carries its token directly or hides it behind a
+ * "Load more" button, which takes precedence when present.
+ */
+const getContinuationToken = (
+  item?: YTNodes.ContinuationItem
+): string | undefined => {
+  const endpoint = item?.button?.endpoint ?? item?.endpoint;
+  return endpoint?.payload?.token;
+};
+
+interface CommentThreadPage {
+  threads: YTNodes.CommentThread[];
+  continuation?: string;
+}
+
+/**
+ * Top level comments and replies come back in the same shape: response
+ * endpoints holding comment threads followed by a continuation item.
+ */
+const toCommentThreadPage = (
+  endpoints?: Helpers.ObservedArray<Helpers.YTNode>
+): CommentThreadPage => {
+  const threads: YTNodes.CommentThread[] = [];
+  let continuation: string | undefined;
+
+  for (const endpoint of endpoints ?? []) {
+    const contents = (
+      endpoint as { contents?: Helpers.ObservedArray<Helpers.YTNode> }
+    ).contents;
+    if (!contents) continue;
+
+    threads.push(...contents.filterType(YTNodes.CommentThread));
+    continuation ??= getContinuationToken(
+      contents.firstOfType(YTNodes.ContinuationItem)
+    );
+  }
+
+  return { threads, continuation };
+};
+
+const getCommentContinuation = async (
+  youtube: Innertube,
+  continuation: string
+): Promise<CommentThreadPage> => {
+  const response = await youtube.actions.execute("/next", {
+    continuation,
+    parse: true,
+  });
+  return toCommentThreadPage(response.on_response_received_endpoints);
+};
+
+const toVideoComment = (
+  thread: YTNodes.CommentThread,
+  videoApiId: string
+): VideoComment => {
+  const comment = thread.comment;
+  return {
+    apiId: comment?.comment_id ?? "",
+    videoCommentId: videoApiId,
+    content: comment?.content?.toString() ?? "",
+    author: comment?.author?.name ?? "",
+    images: comment?.author?.thumbnails ?? [],
+    likes: parseCommentCount(comment?.like_count),
+    replyCount: parseCommentCount(comment?.reply_count),
+    // Replies are only reachable through the token handed out with the parent.
+    replyPage: getContinuationToken(
+      thread.comment_replies_data?.sub_threads?.firstOfType(
+        YTNodes.ContinuationItem
+      )
+    ),
+  };
+};
+
+const emptyCommentsResult = (): VideoCommentsResult => ({
+  comments: [],
+  pageInfo: {
+    resultsPerPage: 0,
+    offset: 0,
+  },
+});
+
+const toVideoCommentsResult = (
+  page: CommentThreadPage,
+  videoApiId: string,
+  offset: number
+): VideoCommentsResult => {
+  const comments = page.threads.map((thread) =>
+    toVideoComment(thread, videoApiId)
+  );
+
+  return {
+    comments,
+    pageInfo: {
+      resultsPerPage: comments.length,
+      offset,
+      nextPage: page.continuation,
+    },
+  };
+};
+
 export const getVideoCommentsInnertube = async (
   request: VideoCommentsRequest
 ): Promise<VideoCommentsResult> => {
-  if (!request.apiId) {
-    const pageInfo: PageInfo = {
-      resultsPerPage: 0,
-      offset: 0,
-    };
-    return {
-      comments: [],
-      pageInfo,
-    };
+  const videoApiId = request.apiId;
+  if (!videoApiId) {
+    return emptyCommentsResult();
   }
 
   try {
     const youtube = await getInnertubeInstance();
-    const comments = await youtube.getComments(request.apiId);
+    const continuation = request.pageInfo?.nextPage;
+    const page = continuation
+      ? await getCommentContinuation(youtube, continuation)
+      : toCommentThreadPage(
+          (await youtube.getComments(videoApiId)).page
+            .on_response_received_endpoints
+        );
 
-    const videoComments: VideoComment[] = comments.contents
-      .filter((c: { type: string }): boolean => c.type === "CommentThread")
-      .map((thread: any): VideoComment => {
-        const comment = thread.comment;
-        return {
-          apiId: comment?.comment_id ?? "",
-          videoCommentId: request.apiId,
-          content: comment?.content?.toString() ?? "",
-          author: comment?.author?.name ?? "",
-          images: comment?.author?.thumbnails ?? [],
-          likes: comment?.vote_count?.text
-            ? parseInt(comment.vote_count.text.replace(/[^0-9]/g, "")) || 0
-            : 0,
-        };
-      });
+    return toVideoCommentsResult(
+      page,
+      videoApiId,
+      request.pageInfo?.offset ?? 0
+    );
+  } catch (e) {
+    console.error("Failed to get comments for video", videoApiId, e);
+    return emptyCommentsResult();
+  }
+};
 
-    const pageInfo: PageInfo = {
-      resultsPerPage: videoComments.length,
-      offset: 0,
-    };
+export const getCommentRepliesInnertube = async (
+  request: CommentReplyRequest
+): Promise<VideoCommentsResult> => {
+  const continuation = request.pageInfo?.nextPage;
+  if (!continuation) {
+    return emptyCommentsResult();
+  }
 
-    return {
-      comments: videoComments,
-      pageInfo,
-    };
-  } catch {
-    const pageInfo: PageInfo = {
-      resultsPerPage: 0,
-      offset: 0,
-    };
-    return {
-      comments: [],
-      pageInfo,
-    };
+  try {
+    const youtube = await getInnertubeInstance();
+    const page = await getCommentContinuation(youtube, continuation);
+
+    return toVideoCommentsResult(
+      page,
+      request.videoApiId ?? "",
+      request.pageInfo?.offset ?? 0
+    );
+  } catch (e) {
+    console.error("Failed to get replies for comment", request.commentApiId, e);
+    return emptyCommentsResult();
   }
 };
 

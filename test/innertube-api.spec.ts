@@ -35,6 +35,70 @@ vi.mock('youtubei.js', () => {
     toDash: vi.fn().mockResolvedValue('<MPD></MPD>'),
   };
 
+  // Sentinels standing in for the real parser node classes, so that
+  // filterType/firstOfType can match on identity like youtubei.js does.
+  const CommentThreadNode = { name: 'CommentThread' };
+  const ContinuationItemNode = { name: 'ContinuationItem' };
+
+  const mockObserved = (items: any[]) => {
+    const array: any = [...items];
+    array.filterType = (type: any) =>
+      array.filter((item: any) => item.nodeType === type);
+    array.firstOfType = (type: any) =>
+      array.find((item: any) => item.nodeType === type);
+    return array;
+  };
+
+  const mockContinuation = (token: string, useButton = false) => ({
+    nodeType: ContinuationItemNode,
+    button: useButton ? { endpoint: { payload: { token } } } : undefined,
+    endpoint: { payload: { token: useButton ? undefined : token } },
+  });
+
+  const mockCommentThread = (
+    id: string,
+    content: string,
+    author: string,
+    likeCount: string,
+    replies?: { replyCount: string; token: string }
+  ) => ({
+    nodeType: CommentThreadNode,
+    comment: {
+      comment_id: id,
+      content: { toString: () => content },
+      author: { name: author, thumbnails: [{ url: `${id}.jpg` }] },
+      like_count: likeCount,
+      reply_count: replies?.replyCount,
+    },
+    comment_replies_data: replies
+      ? { sub_threads: mockObserved([mockContinuation(replies.token)]) }
+      : undefined,
+  });
+
+  const mockCommentsContinuation = (continuation: string) => {
+    const isReplies = continuation.startsWith('reply');
+    return {
+      on_response_received_endpoints: mockObserved([
+        {
+          contents: mockObserved([
+            isReplies
+              ? mockCommentThread('reply-1', 'This is a reply', 'Replier', '5')
+              : mockCommentThread(
+                  'comment-3',
+                  'Page two comment',
+                  'Third Commenter',
+                  '1.2K'
+                ),
+            mockContinuation(
+              isReplies ? 'reply-token-2' : 'next-page-token-2',
+              isReplies
+            ),
+          ]),
+        },
+      ]),
+    };
+  };
+
   return {
     Platform: {
       shim: {
@@ -69,7 +133,12 @@ vi.mock('youtubei.js', () => {
           },
         },
         actions: {
-          execute: vi.fn().mockResolvedValue({ data: 'mock-player-response' }),
+          execute: vi.fn().mockImplementation((endpoint: string, args: any) => {
+            if (endpoint === '/next' && args?.continuation) {
+              return Promise.resolve(mockCommentsContinuation(args.continuation));
+            }
+            return Promise.resolve({ data: 'mock-player-response' });
+          }),
         },
         getHomeFeed: vi.fn().mockResolvedValue({
           videos: [
@@ -125,32 +194,30 @@ vi.mock('youtubei.js', () => {
           { toString: () => 'suggestion 3' }
         ]),
         getComments: vi.fn().mockResolvedValue({
-          contents: [
-            {
-              type: 'CommentThread',
-              comment: {
-                comment_id: 'comment-1',
-                content: { toString: () => 'This is a comment' },
-                author: {
-                  name: 'Commenter',
-                  thumbnails: [{ url: 'avatar.jpg' }]
-                },
-                vote_count: { text: '42' }
-              }
-            },
-            {
-              type: 'CommentThread',
-              comment: {
-                comment_id: 'comment-2',
-                content: { toString: () => 'Another comment' },
-                author: {
-                  name: 'Another Commenter',
-                  thumbnails: [{ url: 'avatar2.jpg' }]
-                },
-                vote_count: { text: '10' }
-              }
-            }
-          ]
+          page: {
+            on_response_received_endpoints: mockObserved([
+              // The first endpoint holds the comments header, not any threads.
+              { contents: mockObserved([]) },
+              {
+                contents: mockObserved([
+                  mockCommentThread(
+                    'comment-1',
+                    'This is a comment',
+                    'Commenter',
+                    '42',
+                    { replyCount: '3', token: 'reply-token-1' }
+                  ),
+                  mockCommentThread(
+                    'comment-2',
+                    'Another comment',
+                    'Another Commenter',
+                    '10'
+                  ),
+                  mockContinuation('next-page-token'),
+                ]),
+              },
+            ]),
+          },
         }),
         getChannel: vi.fn().mockResolvedValue({
           getVideos: vi.fn().mockResolvedValue({
@@ -231,6 +298,8 @@ vi.mock('youtubei.js', () => {
     IBrowseResponse: {},
     YTNodes: {
       AccountItem: {},
+      CommentThread: CommentThreadNode,
+      ContinuationItem: ContinuationItemNode,
       AccountItemSection: {},
       CompactVideo: {},
       LockupView: {},
@@ -254,6 +323,7 @@ import {
   getVideoFromApiIdInnertube,
   getSearchSuggestionsInnertube,
   getVideoCommentsInnertube,
+  getCommentRepliesInnertube,
   getChannelVideosInnertube,
   getPlaylistVideosInnertube,
   searchVideosInnertube,
@@ -382,6 +452,102 @@ describe('Innertube API', () => {
       expect(result.pageInfo).toBeDefined();
       expect(result.pageInfo).toHaveProperty('resultsPerPage');
       expect(result.pageInfo).toHaveProperty('offset', 0);
+    });
+
+    it('should expose the continuation token as nextPage', async () => {
+      const result = await getVideoCommentsInnertube({ apiId: 'test-video-id' });
+
+      expect(result.pageInfo?.nextPage).toBe('next-page-token');
+    });
+
+    it('should include reply count and reply page', async () => {
+      const result = await getVideoCommentsInnertube({ apiId: 'test-video-id' });
+
+      expect(result.comments[0]).toHaveProperty('replyCount', 3);
+      expect(result.comments[0]).toHaveProperty('replyPage', 'reply-token-1');
+      expect(result.comments[1].replyPage).toBeUndefined();
+    });
+
+    it('should fetch the next page from a continuation token', async () => {
+      const result = await getVideoCommentsInnertube({
+        apiId: 'test-video-id',
+        pageInfo: { resultsPerPage: 2, offset: 2, nextPage: 'next-page-token' },
+      });
+
+      expect(result.comments.length).toBe(1);
+      expect(result.comments[0]).toHaveProperty('apiId', 'comment-3');
+      expect(result.pageInfo).toHaveProperty('offset', 2);
+      expect(result.pageInfo?.nextPage).toBe('next-page-token-2');
+    });
+
+    it('should expand abbreviated like counts', async () => {
+      const result = await getVideoCommentsInnertube({
+        apiId: 'test-video-id',
+        pageInfo: { resultsPerPage: 2, offset: 2, nextPage: 'next-page-token' },
+      });
+
+      expect(result.comments[0]).toHaveProperty('likes', 1200);
+    });
+
+    it('should return empty comments when the request fails', async () => {
+      const { Innertube } = await import('youtubei.js');
+      const youtube: any = await (Innertube as any).create();
+      const original = youtube.getComments;
+      youtube.getComments = vi.fn().mockRejectedValue(new Error('parse failed'));
+      const consoleError = vi
+        .spyOn(console, 'error')
+        .mockImplementation(() => {});
+
+      try {
+        const result = await getVideoCommentsInnertube({
+          apiId: 'test-video-id',
+        });
+
+        expect(result.comments).toEqual([]);
+        expect(result.pageInfo?.nextPage).toBeUndefined();
+        expect(consoleError).toHaveBeenCalled();
+      } finally {
+        youtube.getComments = original;
+        consoleError.mockRestore();
+      }
+    });
+  });
+
+  describe('getCommentRepliesInnertube', () => {
+    it('should return replies for a comment', async () => {
+      const result = await getCommentRepliesInnertube({
+        commentApiId: 'comment-1',
+        videoApiId: 'test-video-id',
+        pageInfo: { resultsPerPage: 0, offset: 0, nextPage: 'reply-token-1' },
+      });
+
+      expect(result.comments.length).toBe(1);
+      expect(result.comments[0]).toHaveProperty('apiId', 'reply-1');
+      expect(result.comments[0]).toHaveProperty(
+        'videoCommentId',
+        'test-video-id'
+      );
+      expect(result.comments[0]).toHaveProperty('content', 'This is a reply');
+    });
+
+    it('should read the next reply page from the load more button', async () => {
+      const result = await getCommentRepliesInnertube({
+        commentApiId: 'comment-1',
+        videoApiId: 'test-video-id',
+        pageInfo: { resultsPerPage: 0, offset: 0, nextPage: 'reply-token-1' },
+      });
+
+      expect(result.pageInfo?.nextPage).toBe('reply-token-2');
+    });
+
+    it('should return empty replies without a continuation token', async () => {
+      const result = await getCommentRepliesInnertube({
+        commentApiId: 'comment-1',
+        videoApiId: 'test-video-id',
+      });
+
+      expect(result.comments).toEqual([]);
+      expect(result.pageInfo?.nextPage).toBeUndefined();
     });
   });
 

@@ -24,7 +24,7 @@
     "shaka-player": "^4.16.2",
     "tailwind-merge": "^2.2.0",
     "vite-plugin-singlefile": "^2.3.3",
-    "youtubei.js": "^16.0.0"
+    "youtubei.js": "^18.0.0"
   },
   "scripts": {
     "patch:shaka": "node ./scripts/patchShaka.mjs",
