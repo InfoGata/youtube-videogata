@@ -18,6 +18,8 @@ import {
   getPlaylistVideosInnertube,
   getSearchSuggestionsInnertube,
   getTopItemsInnertube,
+  getUserFeedInnertube,
+  resetInnertubeInstance,
   getVideoCommentsInnertube,
   getVideoFromApiIdInnertube,
   reloadPlayerResponse,
@@ -241,6 +243,19 @@ async function getTopItems(): Promise<SearchAllResult> {
   }
 }
 
+async function getUserFeed(): Promise<SearchVideoResult> {
+  try {
+    return await getUserFeedInnertube();
+  } catch (e) {
+    // A feed we can't load is the same as no feed: VideoGata falls back to the
+    // top items rather than showing the home page an error. Logged, though --
+    // silently returning nothing here is indistinguishable from being signed
+    // out, which makes a broken feed very hard to tell from a working one.
+    console.error("Failed to get user feed", e);
+    return { items: [] };
+  }
+}
+
 async function getYoutubeVideo(request: GetVideoRequest): Promise<Video> {
   return getVideoFromApiIdInnertube(request.apiId);
 }
@@ -307,6 +322,15 @@ application.onGetPlaylistVideos = getPlaylistVideos;
 application.onGetVideoComments = getVideoComments;
 application.onGetCommentReplies = getCommentReplies;
 application.onGetTopItems = getTopItems;
+// Registered whether or not the user is signed in: VideoGata checks that this
+// method exists before calling it, and it reports an empty feed when signed out.
+application.onGetUserFeed = getUserFeed;
+application.onPostLogin = async () => {
+  resetInnertubeInstance();
+};
+application.onPostLogout = async () => {
+  resetInnertubeInstance();
+};
 application.onGetVideo = getYoutubeVideo;
 application.onLookupPlaylistUrl = importPlaylist;
 application.onLookupVideoUrls = resolveUrls;

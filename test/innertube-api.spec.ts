@@ -1,4 +1,4 @@
-import { vi, describe, it, expect, beforeEach } from 'vitest';
+import { vi, describe, it, expect, beforeEach, afterEach } from 'vitest';
 
 // Mock googlevideo/utils
 vi.mock('googlevideo/utils', () => ({
@@ -320,6 +320,8 @@ vi.mock('youtubei.js/dist/src/parser/nodes', () => ({
 
 import {
   getTopItemsInnertube,
+  getUserFeedInnertube,
+  resetInnertubeInstance,
   getVideoFromApiIdInnertube,
   getSearchSuggestionsInnertube,
   getVideoCommentsInnertube,
@@ -359,6 +361,91 @@ describe('Innertube API', () => {
     it('should return multiple videos', async () => {
       const result = await getTopItemsInnertube();
       expect(result.videos?.items.length).toBeGreaterThan(1);
+    });
+  });
+
+  describe('getUserFeedInnertube', () => {
+    const app = (global as any).application;
+
+    // The session is memoized module-wide, so each case has to start from a
+    // fresh one for its cookie to be the one Innertube.create sees.
+    beforeEach(() => {
+      resetInnertubeInstance();
+    });
+
+    const realNetworkRequest = app.networkRequest;
+    afterEach(() => {
+      app.isLoggedIn = async () => false;
+      app.getAuthHeaders = async () => ({});
+      app.networkRequest = realNetworkRequest;
+      resetInnertubeInstance();
+    });
+
+    it('returns nothing when the user is signed out', async () => {
+      app.isLoggedIn = async () => false;
+
+      const result = await getUserFeedInnertube();
+      expect(result.items).toEqual([]);
+    });
+
+    it('returns the home feed when the user is signed in', async () => {
+      app.isLoggedIn = async () => true;
+
+      const result = await getUserFeedInnertube();
+      expect(result.items.length).toBeGreaterThan(1);
+      expect(result.items[0]).toHaveProperty('apiId');
+      expect(result.items[0]).toHaveProperty('title');
+    });
+
+    it('builds the session with the captured cookie so SAPISID is available', async () => {
+      app.isLoggedIn = async () => true;
+      app.getAuthHeaders = async (domain: string) =>
+        domain === 'www.youtube.com' ? { Cookie: 'SAPISID=secret' } : {};
+
+      await getUserFeedInnertube();
+
+      const { Innertube } = await import('youtubei.js');
+      expect(Innertube.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          cookie: expect.stringContaining('SAPISID=secret'),
+        })
+      );
+    });
+
+    it('sends X-Origin so YouTube honours the SAPISIDHASH signature', async () => {
+      app.isLoggedIn = async () => true;
+      app.getAuthHeaders = async () => ({ Cookie: 'SAPISID=secret' });
+
+      await getUserFeedInnertube();
+
+      const { Innertube } = await import('youtubei.js');
+      const passedFetch = (Innertube.create as any).mock.calls.at(-1)[0].fetch;
+
+      const seen: Headers[] = [];
+      app.networkRequest = async (_input: any, init: any) => {
+        seen.push(new Headers(init.headers));
+        return new Response('{}');
+      };
+      await passedFetch('https://www.youtube.com/youtubei/v1/browse', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+      });
+
+      expect(seen[0].get('X-Origin')).toBe('https://www.youtube.com');
+      // The caller's own headers must survive being wrapped.
+      expect(seen[0].get('Content-Type')).toBe('application/json');
+    });
+
+    it('falls back to the consent-only cookie when nothing was captured', async () => {
+      app.isLoggedIn = async () => true;
+      app.getAuthHeaders = async () => ({});
+
+      await getUserFeedInnertube();
+
+      const { Innertube } = await import('youtubei.js');
+      expect(Innertube.create).toHaveBeenCalledWith(
+        expect.objectContaining({ cookie: 'CONSENT=YES+' })
+      );
     });
   });
 

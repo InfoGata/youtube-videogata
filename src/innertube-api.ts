@@ -124,15 +124,70 @@ Platform.shim.eval = async (
   return new Function(code)();
 };
 
+const CONSENT_COOKIE = "CONSENT=YES+";
+const YOUTUBE_ORIGIN = "https://www.youtube.com";
+
+/**
+ * youtubei.js signs InnerTube calls with `Authorization: SAPISIDHASH`, a hash
+ * taken over `https://www.youtube.com`. YouTube only honours that signature
+ * when it can see the matching origin, and the real `Origin` header never
+ * survives the trip out (the extension strips its own, and `Origin` can't be
+ * set from fetch anyway) -- so the signature is ignored and every response
+ * comes back logged out, no matter how good the cookie is. `X-Origin` states
+ * the origin explicitly, which is exactly what the YouTube web client sends
+ * alongside its own SAPISIDHASH. youtubei.js sets `Authorization` and
+ * `X-Goog-Authuser` but not this one, so we add it here.
+ */
+const innertubeFetch: typeof application.networkRequest = (input, init) => {
+  const headers = new Headers(
+    init?.headers ?? (input instanceof Request ? input.headers : undefined)
+  );
+  headers.set("X-Origin", YOUTUBE_ORIGIN);
+  return application.networkRequest(input, { ...init, headers });
+};
+
+/**
+ * The cookie string handed to youtubei.js.
+ *
+ * The `Cookie` header the library then sets on each request is dropped by fetch
+ * as a forbidden header, and that's fine: the live session cookies are attached
+ * by the browser itself, because VideoGata asks the extension to send our
+ * `siteMatch` requests with credentials. What this string is actually for is
+ * `SAPISID` — youtubei.js reads it to derive a fresh `Authorization:
+ * SAPISIDHASH` per request, which is what makes InnerTube treat us as signed
+ * in. Deriving it per request is also why we capture the cookie at login rather
+ * than a ready-made `Authorization` header, which would go stale.
+ */
+const buildCookie = async (): Promise<string> => {
+  try {
+    const headers = await application.getAuthHeaders("www.youtube.com");
+    const cookie = headers["Cookie"] ?? headers["cookie"];
+    if (cookie) {
+      return `${cookie}; ${CONSENT_COOKIE}`;
+    }
+  } catch {
+    // An older VideoGata without getAuthHeaders just means a signed-out session.
+  }
+  return CONSENT_COOKIE;
+};
+
 let instance: Innertube | undefined;
 const getInnertubeInstance = async (): Promise<Innertube> => {
   if (!instance) {
     instance = await Innertube.create({
-      fetch: application.networkRequest,
-      cookie: "CONSENT=YES+",
+      fetch: innertubeFetch,
+      cookie: await buildCookie(),
     });
   }
   return instance;
+};
+
+/**
+ * Drops the memoized session so the next call rebuilds it. The session's
+ * cookie is fixed at creation, so signing in or out has to start a new one.
+ */
+export const resetInnertubeInstance = () => {
+  instance = undefined;
 };
 
 export const getInnertubeInstanceExported = getInnertubeInstance;
@@ -147,6 +202,21 @@ export const getTopItemsInnertube = async (): Promise<SearchAllResult> => {
       items: videos,
     },
   };
+};
+
+/**
+ * The signed-in user's own YouTube home feed. Returns nothing when there's no
+ * signed-in session, which tells VideoGata to fall back to the top items.
+ */
+export const getUserFeedInnertube = async (): Promise<SearchVideoResult> => {
+  if (!(await application.isLoggedIn())) {
+    return { items: [] };
+  }
+
+  const youtube = await getInnertubeInstance();
+  const home = await youtube.getHomeFeed();
+
+  return { items: toVideos(withVideoLockups(home.videos, home)) };
 };
 
 export const getVideoFromApiIdInnertube = async (

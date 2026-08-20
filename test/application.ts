@@ -18,4 +18,12 @@ export const application = {
   getTheme: async function (): Promise<string> {
     return "light";
   },
+  isLoggedIn: async function (): Promise<boolean> {
+    return false;
+  },
+  getAuthHeaders: async function (
+    _domain: string
+  ): Promise<Record<string, string>> {
+    return {};
+  },
 };
