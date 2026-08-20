@@ -39,7 +39,7 @@ type LegacyVideoNode = {
   id: string;
   title: { toString: () => string };
   duration?: unknown;
-  author: { name?: string; id?: string };
+  author: { name?: string; id?: string; thumbnails?: ImageInfo[] };
   thumbnails?: ImageInfo[];
   /** `Video` exposes a numeric-ish count; `ReelItem` only the short form. */
   view_count?: NodeText;
@@ -99,6 +99,7 @@ const toVideos = (
         channelName: legacy.author.name,
         channelApiId: legacy.author.id,
         images: legacy.thumbnails ?? [],
+        channelImages: legacy.author.thumbnails ?? [],
         views: legacyViews(legacy),
         uploadDate: parseRelativeDate(
           legacy.published?.text ?? legacy.published?.toString()

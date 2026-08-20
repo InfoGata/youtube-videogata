@@ -57,6 +57,21 @@ export const getLockupImages = (lockup: LockupView): ImageInfo[] =>
   getThumbnailView(lockup)?.image ?? [];
 
 /**
+ * The channel avatar shown beside the title. A plain video lockup carries a
+ * single decorated avatar; surfaces that can credit several channels (a
+ * collaboration, a mix) carry a stack instead, and the first is the one the
+ * card is attributed to.
+ */
+export const getLockupChannelImages = (lockup: LockupView): ImageInfo[] => {
+  const image = lockup.metadata?.image;
+  if (isNode<YTNodes.DecoratedAvatarView>(image, "DecoratedAvatarView"))
+    return image.avatar?.image ?? [];
+  if (isNode<YTNodes.AvatarStackView>(image, "AvatarStackView"))
+    return image.avatars?.[0]?.image ?? [];
+  return [];
+};
+
+/**
  * The duration sits in a thumbnail badge, sharing space with non-duration
  * badges ("Now playing", "4K", …), so match on the text rather than position.
  */
@@ -212,6 +227,7 @@ export const lockupToVideo = (
     channelName: author.channelName ?? fallback.channelName,
     channelApiId: author.channelApiId ?? fallback.channelApiId,
     images: getLockupImages(lockup),
+    channelImages: getLockupChannelImages(lockup),
     views: stats.views,
     uploadDate: stats.uploadDate,
   };

@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import {
   getLockupAuthor,
+  getLockupChannelImages,
   getLockupDuration,
   getLockupStats,
   lockupToPlaylistInfo,
@@ -25,6 +26,23 @@ const thumbnails = [
   { url: "https://i.ytimg.com/vi/abc/hq.jpg", width: 336, height: 188 },
 ];
 
+const avatar = [
+  { url: "https://yt3.ggpht.com/avatar=s68", width: 68, height: 68 },
+];
+
+const decoratedAvatar = {
+  type: "DecoratedAvatarView",
+  avatar: { type: "AvatarView", image: avatar },
+};
+
+const avatarStack = {
+  type: "AvatarStackView",
+  avatars: [
+    { type: "AvatarView", image: avatar },
+    { type: "AvatarView", image: [{ url: "other", width: 68, height: 68 }] },
+  ],
+};
+
 const thumbnailView = (duration?: string) => ({
   type: "ThumbnailView",
   image: thumbnails,
@@ -48,6 +66,7 @@ const lockup = (options: {
   rows?: unknown[];
   duration?: string;
   collection?: boolean;
+  image?: unknown;
 }) =>
   ({
     type: "LockupView",
@@ -56,6 +75,7 @@ const lockup = (options: {
     metadata: {
       type: "LockupMetadataView",
       title: text(options.title),
+      image: options.image,
       metadata: {
         type: "ContentMetadataView",
         metadata_rows: options.rows ?? [],
@@ -86,10 +106,31 @@ const playlistPageVideo = lockup({
   id: "1oahTaVIQvk",
   title: "Floating City",
   duration: "2:03:14",
+  image: decoratedAvatar,
   rows: [
     { metadata_parts: [{ text: text("the bootleg boy", "UC0fiLCwTmAukotCXYnqfj0A") }] },
     { metadata_parts: [{ text: text("4.4M views") }, { text: text("4 years ago") }] },
   ],
+});
+
+describe("getLockupChannelImages", () => {
+  it("reads the avatar off a plain video lockup", () => {
+    expect(getLockupChannelImages(playlistPageVideo)).toEqual(avatar);
+  });
+
+  it("credits the first channel when several share a stack", () => {
+    const collab = lockup({
+      contentType: "VIDEO",
+      id: "x",
+      title: "collab",
+      image: avatarStack,
+    });
+    expect(getLockupChannelImages(collab)).toEqual(avatar);
+  });
+
+  it("returns nothing when the lockup carries no avatar", () => {
+    expect(getLockupChannelImages(channelTabVideo)).toEqual([]);
+  });
 });
 
 describe("parseViewCount", () => {
@@ -216,6 +257,7 @@ describe("lockupToVideo", () => {
       channelName: "the bootleg boy",
       channelApiId: "UC0fiLCwTmAukotCXYnqfj0A",
       images: thumbnails,
+      channelImages: avatar,
       views: 4_400_000,
       uploadDate: expect.any(String),
     });
