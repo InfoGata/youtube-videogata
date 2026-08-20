@@ -16,6 +16,8 @@ import {
   LockupAuthor,
   lockupToPlaylistInfo,
   lockupToVideo,
+  parseRelativeDate,
+  parseViewCount,
 } from "./lockup";
 import { SABR_DATA_KEY, SabrData, storage } from "./shared";
 
@@ -30,6 +32,8 @@ const getDurationSeconds = (duration: any): number => {
   return 0;
 };
 
+type NodeText = { text?: string; toString: () => string };
+
 /** The pre-lockup renderer nodes: `Video`, `CompactVideo`, `PlaylistVideo`, … */
 type LegacyVideoNode = {
   id: string;
@@ -37,6 +41,20 @@ type LegacyVideoNode = {
   duration?: unknown;
   author: { name?: string; id?: string };
   thumbnails?: ImageInfo[];
+  /** `Video` exposes a numeric-ish count; `ReelItem` only the short form. */
+  view_count?: NodeText;
+  short_view_count?: NodeText;
+  views?: NodeText;
+  published?: NodeText;
+};
+
+/** These nodes carry view counts as rendered text, same as lockups do. */
+const legacyViews = (node: LegacyVideoNode): number | undefined => {
+  for (const candidate of [node.view_count, node.short_view_count, node.views]) {
+    const views = parseViewCount(candidate?.text ?? candidate?.toString());
+    if (views !== undefined) return views;
+  }
+  return undefined;
 };
 
 const asLegacyVideo = (node: Helpers.YTNode): LegacyVideoNode | null => {
@@ -81,6 +99,10 @@ const toVideos = (
         channelName: legacy.author.name,
         channelApiId: legacy.author.id,
         images: legacy.thumbnails ?? [],
+        views: legacyViews(legacy),
+        uploadDate: parseRelativeDate(
+          legacy.published?.text ?? legacy.published?.toString()
+        ),
       };
     })
     .filter((video): video is Video => video !== null);

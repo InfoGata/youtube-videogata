@@ -81,6 +81,87 @@ export const getLockupDuration = (lockup: LockupView): number => {
   return 0;
 };
 
+/**
+ * Feeds only ever carry the *rendered* view count and publish date -- "4K
+ * views", "3 hours ago" -- so these have to be read back out of display text.
+ * That makes them locale-dependent, unlike the structural checks elsewhere in
+ * this file. The session doesn't set a language, so youtubei.js asks for `en`
+ * and these patterns hold; anything they don't recognise yields undefined, so a
+ * different locale loses the metadata rather than inventing a wrong number.
+ */
+const VIEW_COUNT_PATTERN = /^([\d.,]+)\s*([KMB])?\s+views?$/i;
+
+const VIEW_MULTIPLIERS: Record<string, number> = {
+  k: 1e3,
+  m: 1e6,
+  b: 1e9,
+};
+
+/** `"4K views"` -> `4000`. Undefined for text that isn't a view count. */
+export const parseViewCount = (text?: string | null): number | undefined => {
+  const match = VIEW_COUNT_PATTERN.exec(text?.trim() ?? "");
+  if (!match) return undefined;
+  const amount = Number(match[1].replace(/,/g, ""));
+  if (!Number.isFinite(amount)) return undefined;
+  const multiplier = match[2] ? VIEW_MULTIPLIERS[match[2].toLowerCase()] : 1;
+  return Math.round(amount * multiplier);
+};
+
+/** Also matches "Streamed 3 days ago" and "Premiered 2 weeks ago". */
+const RELATIVE_DATE_PATTERN =
+  /(\d+)\s+(second|minute|hour|day|week|month|year)s?\s+ago/i;
+
+const RELATIVE_DATE_MS: Record<string, number> = {
+  second: 1000,
+  minute: 60 * 1000,
+  hour: 60 * 60 * 1000,
+  day: 24 * 60 * 60 * 1000,
+  week: 7 * 24 * 60 * 60 * 1000,
+  month: 30 * 24 * 60 * 60 * 1000,
+  year: 365 * 24 * 60 * 60 * 1000,
+};
+
+/**
+ * `"3 hours ago"` -> an ISO timestamp three hours back. Approximate by nature,
+ * which is fine: the app renders it straight back as a relative time, so it
+ * round-trips to the string YouTube showed.
+ */
+export const parseRelativeDate = (
+  text?: string | null,
+  now: number = Date.now()
+): string | undefined => {
+  const match = RELATIVE_DATE_PATTERN.exec(text?.trim() ?? "");
+  if (!match) return undefined;
+  const unit = RELATIVE_DATE_MS[match[2].toLowerCase()];
+  if (!unit) return undefined;
+  return new Date(now - Number(match[1]) * unit).toISOString();
+};
+
+export interface LockupStats {
+  views?: number;
+  uploadDate?: string;
+}
+
+/**
+ * Which row holds the stats varies by surface -- second row in a feed, first on
+ * a channel page -- so every part gets tried rather than trusting a position.
+ */
+export const getLockupStats = (
+  lockup: LockupView,
+  now: number = Date.now()
+): LockupStats => {
+  const stats: LockupStats = {};
+  for (const row of lockup.metadata?.metadata?.metadata_rows ?? []) {
+    for (const part of row.metadata_parts ?? []) {
+      const text = part.text?.toString();
+      if (!text) continue;
+      stats.views ??= parseViewCount(text);
+      stats.uploadDate ??= parseRelativeDate(text, now);
+    }
+  }
+  return stats;
+};
+
 export interface LockupAuthor {
   channelName?: string;
   channelApiId?: string;
@@ -123,6 +204,7 @@ export const lockupToVideo = (
 ): Video | null => {
   if (lockup.content_type !== "VIDEO") return null;
   const author = getLockupAuthor(lockup);
+  const stats = getLockupStats(lockup);
   return {
     apiId: lockup.content_id,
     title: lockup.metadata?.title?.toString() ?? "",
@@ -130,6 +212,8 @@ export const lockupToVideo = (
     channelName: author.channelName ?? fallback.channelName,
     channelApiId: author.channelApiId ?? fallback.channelApiId,
     images: getLockupImages(lockup),
+    views: stats.views,
+    uploadDate: stats.uploadDate,
   };
 };
 

@@ -2,9 +2,12 @@ import { describe, it, expect } from "vitest";
 import {
   getLockupAuthor,
   getLockupDuration,
+  getLockupStats,
   lockupToPlaylistInfo,
   lockupToVideo,
   parseDurationText,
+  parseRelativeDate,
+  parseViewCount,
 } from "../src/lockup";
 
 /**
@@ -89,6 +92,82 @@ const playlistPageVideo = lockup({
   ],
 });
 
+describe("parseViewCount", () => {
+  it("expands the abbreviations YouTube renders", () => {
+    expect(parseViewCount("4K views")).toBe(4000);
+    expect(parseViewCount("67K views")).toBe(67_000);
+    expect(parseViewCount("1.2M views")).toBe(1_200_000);
+    expect(parseViewCount("2.5B views")).toBe(2_500_000_000);
+  });
+
+  it("reads unabbreviated counts, separators and all", () => {
+    expect(parseViewCount("1,234 views")).toBe(1234);
+    expect(parseViewCount("1 view")).toBe(1);
+  });
+
+  it("yields nothing for text that isn't a view count", () => {
+    expect(parseViewCount("3 hours ago")).toBeUndefined();
+    expect(parseViewCount("the bootleg boy")).toBeUndefined();
+    expect(parseViewCount("No views")).toBeUndefined();
+    expect(parseViewCount(undefined)).toBeUndefined();
+  });
+});
+
+describe("parseRelativeDate", () => {
+  const now = Date.parse("2026-08-20T12:00:00.000Z");
+
+  it("walks back from now by the stated amount", () => {
+    expect(parseRelativeDate("3 hours ago", now)).toBe(
+      "2026-08-20T09:00:00.000Z"
+    );
+    expect(parseRelativeDate("1 day ago", now)).toBe(
+      "2026-08-19T12:00:00.000Z"
+    );
+    expect(parseRelativeDate("2 weeks ago", now)).toBe(
+      "2026-08-06T12:00:00.000Z"
+    );
+  });
+
+  it("handles the streamed and premiered prefixes", () => {
+    expect(parseRelativeDate("Streamed 3 hours ago", now)).toBe(
+      "2026-08-20T09:00:00.000Z"
+    );
+    expect(parseRelativeDate("Premiered 1 day ago", now)).toBe(
+      "2026-08-19T12:00:00.000Z"
+    );
+  });
+
+  it("yields nothing rather than guessing at unfamiliar text", () => {
+    expect(parseRelativeDate("310K views", now)).toBeUndefined();
+    expect(parseRelativeDate("il y a 3 heures", now)).toBeUndefined();
+    expect(parseRelativeDate(undefined, now)).toBeUndefined();
+  });
+});
+
+describe("getLockupStats", () => {
+  const now = Date.parse("2026-08-20T12:00:00.000Z");
+
+  it("finds stats in the second row, as a feed lays them out", () => {
+    expect(getLockupStats(playlistPageVideo, now)).toEqual({
+      views: 4_400_000,
+      uploadDate: "2022-08-21T12:00:00.000Z",
+    });
+  });
+
+  it("finds them in the first row too, as a channel page lays them out", () => {
+    expect(getLockupStats(channelTabVideo, now)).toEqual({
+      views: 310_000,
+      uploadDate: "2026-08-06T12:00:00.000Z",
+    });
+  });
+
+  it("returns nothing when no row carries stats", () => {
+    expect(
+      getLockupStats(lockup({ contentType: "VIDEO", id: "x", title: "y" }), now)
+    ).toEqual({});
+  });
+});
+
 describe("parseDurationText", () => {
   it("parses hours, minutes and seconds", () => {
     expect(parseDurationText("1:01:01")).toBe(3661);
@@ -137,6 +216,8 @@ describe("lockupToVideo", () => {
       channelName: "the bootleg boy",
       channelApiId: "UC0fiLCwTmAukotCXYnqfj0A",
       images: thumbnails,
+      views: 4_400_000,
+      uploadDate: expect.any(String),
     });
   });
 
