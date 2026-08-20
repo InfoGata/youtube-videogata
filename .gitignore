@@ -23,6 +23,9 @@ bower_components
 .lock-wscript
 
 # IDEs and editors
+*.swp
+*.swo
+*~
 .idea
 .project
 .classpath
