@@ -237,7 +237,22 @@ vi.mock('youtubei.js', () => {
                 thumbnails: [{ url: 'channel-video2.jpg' }]
               }
             ]
-          })
+          }),
+          has_search: true,
+          metadata: { title: 'Channel Author' },
+          search: vi.fn().mockImplementation((query: string) =>
+            Promise.resolve({
+              videos: [
+                {
+                  id: 'channel-search-video-1',
+                  title: { toString: () => `Channel Search: ${query}` },
+                  duration: { seconds: 300 },
+                  author: { name: 'Channel Author', id: 'channel-author-1' },
+                  thumbnails: [{ url: 'channel-search.jpg' }]
+                }
+              ]
+            })
+          )
         }),
         getPlaylist: vi.fn().mockResolvedValue({
           items: [
@@ -327,6 +342,7 @@ import {
   getVideoCommentsInnertube,
   getCommentRepliesInnertube,
   getChannelVideosInnertube,
+  searchChannelVideosInnertube,
   getPlaylistVideosInnertube,
   searchVideosInnertube,
   searchChannelsInnertube,
@@ -673,6 +689,33 @@ describe('Innertube API', () => {
       expect(result.pageInfo).toBeDefined();
       expect(result.pageInfo).toHaveProperty('resultsPerPage', 2);
       expect(result.pageInfo).toHaveProperty('offset', 0);
+    });
+  });
+
+  describe('searchChannelVideosInnertube', () => {
+    it('should return videos matching the query within the channel', async () => {
+      const result = await searchChannelVideosInnertube({
+        apiId: 'test-channel-id',
+        query: 'zercher',
+      });
+
+      expect(result.items.length).toBe(1);
+      const video = result.items[0];
+      expect(video).toHaveProperty('apiId', 'channel-search-video-1');
+      expect(video).toHaveProperty('title', 'Channel Search: zercher');
+      expect(video).toHaveProperty('channelApiId', 'channel-author-1');
+      expect(result.pageInfo).toHaveProperty('resultsPerPage', 1);
+      expect(result.pageInfo).toHaveProperty('offset', 0);
+    });
+
+    it('should return empty results for undefined apiId', async () => {
+      const result = await searchChannelVideosInnertube({
+        apiId: undefined as any,
+        query: 'zercher',
+      });
+
+      expect(result.items).toEqual([]);
+      expect(result.pageInfo).toBeDefined();
     });
   });
 

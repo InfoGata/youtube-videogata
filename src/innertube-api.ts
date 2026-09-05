@@ -626,6 +626,44 @@ export const getChannelVideosInnertube = async (
   };
 };
 
+export const searchChannelVideosInnertube = async (
+  request: ChannelSearchRequest
+): Promise<SearchVideoResult> => {
+  const emptyResult: SearchVideoResult = {
+    items: [],
+    pageInfo: { resultsPerPage: 0, offset: 0 },
+  };
+  if (!request.apiId) {
+    return emptyResult;
+  }
+
+  const youtube = await getInnertubeInstance();
+  const channel = await youtube.getChannel(request.apiId);
+  // Not every channel exposes a search tab.
+  if (!channel.has_search) {
+    return emptyResult;
+  }
+
+  const results = await channel.search(request.query);
+
+  // Results from within a channel omit the author from each lockup, so supply
+  // the channel being searched.
+  const videos = toVideos(withVideoLockups(results.videos, results), {
+    channelName: channel.metadata?.title,
+    channelApiId: request.apiId,
+  });
+
+  const pageInfo: PageInfo = {
+    resultsPerPage: videos.length,
+    offset: 0,
+  };
+
+  return {
+    items: videos,
+    pageInfo,
+  };
+};
+
 export const getUserChannelsInnertube = async (
   _request: UserChannelRequest
 ): Promise<SearchChannelResult> => {

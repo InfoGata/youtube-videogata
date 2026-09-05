@@ -14,6 +14,7 @@ import {
 } from "./youtube";
 import {
   getChannelVideosInnertube,
+  searchChannelVideosInnertube,
   getCommentRepliesInnertube,
   getPlaylistVideosInnertube,
   getSearchSuggestionsInnertube,
@@ -220,6 +221,12 @@ async function getChannelVideos(
   return getChannelVideosInnertube(request);
 }
 
+async function searchChannelVideos(
+  request: ChannelSearchRequest
+): Promise<SearchVideoResult> {
+  return searchChannelVideosInnertube(request);
+}
+
 async function searchPlaylists(
   request: SearchRequest
 ): Promise<SearchPlaylistResult> {
@@ -318,6 +325,7 @@ application.onSearchVideos = searchVideos;
 application.onSearchPlaylists = searchPlaylists;
 application.onSearchChannels = searchChannels;
 application.onGetChannelVideos = getChannelVideos;
+application.onSearchChannelVideos = searchChannelVideos;
 application.onGetPlaylistVideos = getPlaylistVideos;
 application.onGetVideoComments = getVideoComments;
 application.onGetCommentReplies = getCommentReplies;
