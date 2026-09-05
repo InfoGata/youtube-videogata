@@ -2,7 +2,7 @@
   "id": "IIEPnSr5isZy82cdy4ig9",
   "name": "Plugin for Youtube",
   "alias": "youtube",
-  "version": "1.18.0",
+  "version": "1.19.0",
   "script": "dist/index.js",
   "options": "dist/options.html",
   "player": "dist/player.html",
