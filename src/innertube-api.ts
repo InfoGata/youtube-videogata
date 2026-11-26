@@ -82,12 +82,16 @@ const withVideoLockups = (
 /**
  * Feeds return either the legacy renderer nodes or the newer `LockupView`, and
  * a single response can mix the two, so every video list goes through here.
+ *
+ * Deduplicated by id: withVideoLockups adds every lockup in the response, and
+ * some of them are already among the feed's own nodes.
  */
 const toVideos = (
   nodes: Helpers.YTNode[],
   fallback: LockupAuthor = {}
-): Video[] =>
-  nodes
+): Video[] => {
+  const seen = new Set<string>();
+  return nodes
     .map((node): Video | null => {
       if (isLockupView(node)) return lockupToVideo(node, fallback);
       const legacy = asLegacyVideo(node);
@@ -106,7 +110,14 @@ const toVideos = (
         ),
       };
     })
-    .filter((video): video is Video => video !== null);
+    .filter((video): video is Video => {
+      if (video === null) return false;
+      if (!video.apiId) return true;
+      if (seen.has(video.apiId)) return false;
+      seen.add(video.apiId);
+      return true;
+    });
+};
 
 const toPlaylistInfos = (nodes: Helpers.YTNode[]): PlaylistInfo[] =>
   nodes
