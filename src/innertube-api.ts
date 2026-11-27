@@ -253,29 +253,33 @@ export const getUserFeedInnertube = async (): Promise<SearchVideoResult> => {
   return { items: toVideos(withVideoLockups(home.videos, home)) };
 };
 
-export const getVideoFromApiIdInnertube = async (
-  apiId: string
-): Promise<Video> => {
+const videoRequests = new Map<string, Promise<Video>>();
+
+/**
+ * VideoGata asks for the same video from more than one place at once (the
+ * watch page and its player). Every /player call starts a new playback
+ * session, and the SABR data the player streams with is only good while its
+ * session is the latest, so concurrent asks share one request.
+ */
+export const getVideoFromApiIdInnertube = (apiId: string): Promise<Video> => {
+  let request = videoRequests.get(apiId);
+  if (!request) {
+    request = fetchVideoInnertube(apiId).finally(() => {
+      videoRequests.delete(apiId);
+    });
+    videoRequests.set(apiId, request);
+  }
+  return request;
+};
+
+const fetchVideoInnertube = async (apiId: string): Promise<Video> => {
   console.log("Getting video info for id", apiId);
   const youtube = await getInnertubeInstance();
 
-  const playerResponse = await youtube.actions.execute("/player", {
-    videoId: apiId,
-    contentCheckOk: true,
-    racyCheckOk: true,
-    playbackContext: {
-      contentPlaybackContext: {
-        signatureTimestamp: youtube.session.player?.signature_timestamp,
-      },
-    },
-  });
-
-  const cpn = Utils.generateRandomString(16);
-  const videoInfo = new YT.VideoInfo(
-    [playerResponse],
-    youtube.actions,
-    cpn
-  );
+  // /player and /next in parallel. Its player response is also what the SABR
+  // data is built from: a second /player call would start a newer session
+  // and leave the player's one stale.
+  const videoInfo = await youtube.getInfo(apiId);
 
   console.log("Got video info from innertube", videoInfo);
 
@@ -289,12 +293,10 @@ export const getVideoFromApiIdInnertube = async (
         videoInfo.streaming_data?.hls_manifest_url
       ));
 
-  // Get watch_next data for related videos and metadata
-  const info = await youtube.getInfo(apiId);
-  const videoDetails = info.primary_info;
-  const channelInfo = info.secondary_info?.owner;
+  const videoDetails = videoInfo.primary_info;
+  const channelInfo = videoInfo.secondary_info?.owner;
 
-  const relatedVideos = (info.watch_next_feed ?? [])
+  const relatedVideos = (videoInfo.watch_next_feed ?? [])
     .filter((v): v is CompactVideo => v.type === "CompactVideo")
     .map((v): Video => {
       const vid = v as CompactVideo;

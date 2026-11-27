@@ -158,14 +158,9 @@ vi.mock('youtubei.js', () => {
             }
           ]
         }),
-        getInfo: vi.fn().mockResolvedValue({
-          basic_info: {
-            title: 'Video Title',
-            duration: 300,
-            view_count: 1000,
-            short_description: 'Video description',
-            thumbnail: [{ url: 'thumb.jpg' }]
-          },
+        // A real VideoInfo: the player response's fields plus the watch page's
+        getInfo: vi.fn().mockImplementation(async () => ({
+          ...mockVideoInfo,
           primary_info: {
             published: { text: '2024-01-15' }
           },
@@ -173,9 +168,6 @@ vi.mock('youtubei.js', () => {
             owner: {
               author: { name: 'Channel Name', id: 'channel-id' }
             }
-          },
-          streaming_data: {
-            hls_manifest_url: 'https://example.com/manifest.m3u8'
           },
           watch_next_feed: [
             {
@@ -187,7 +179,7 @@ vi.mock('youtubei.js', () => {
               thumbnails: [{ url: 'related.jpg' }]
             }
           ]
-        }),
+        })),
         getSearchSuggestions: vi.fn().mockResolvedValue([
           'suggestion 1',
           'suggestion 2',
@@ -347,6 +339,7 @@ import {
   searchVideosInnertube,
   searchChannelsInnertube,
   searchPlaylistsInnertube,
+  getInnertubeInstanceExported,
 } from '../src/innertube-api';
 
 describe('Innertube API', () => {
@@ -498,6 +491,52 @@ describe('Innertube API', () => {
 
       expect(result.images).toBeDefined();
       expect(Array.isArray(result.images)).toBe(true);
+    });
+
+    it('should start a single playback session per video', async () => {
+      const youtube = await getInnertubeInstanceExported();
+      vi.mocked(youtube.getInfo).mockClear();
+      vi.mocked(youtube.actions.execute).mockClear();
+
+      await getVideoFromApiIdInnertube('test-video-id');
+
+      expect(youtube.getInfo).toHaveBeenCalledTimes(1);
+      expect(youtube.actions.execute).not.toHaveBeenCalledWith(
+        '/player',
+        expect.anything()
+      );
+    });
+
+    it('should share one request between concurrent calls for a video', async () => {
+      const youtube = await getInnertubeInstanceExported();
+      vi.mocked(youtube.getInfo).mockClear();
+
+      const [first, second] = await Promise.all([
+        getVideoFromApiIdInnertube('test-video-id'),
+        getVideoFromApiIdInnertube('test-video-id'),
+      ]);
+
+      expect(youtube.getInfo).toHaveBeenCalledTimes(1);
+      expect(second).toBe(first);
+    });
+
+    it('should fetch again once the earlier request has finished', async () => {
+      const youtube = await getInnertubeInstanceExported();
+      vi.mocked(youtube.getInfo).mockClear();
+
+      await getVideoFromApiIdInnertube('test-video-id');
+      await getVideoFromApiIdInnertube('test-video-id');
+
+      expect(youtube.getInfo).toHaveBeenCalledTimes(2);
+    });
+
+    it('should store SABR data for the video it fetched', async () => {
+      await getVideoFromApiIdInnertube('test-video-id');
+
+      const stored = JSON.parse(localStorage.getItem('sabrData') ?? '{}');
+      expect(stored.videoId).toBe('test-video-id');
+      expect(stored.streamingUrl).toBeTruthy();
+      expect(typeof stored.createdAt).toBe('number');
     });
   });
 
