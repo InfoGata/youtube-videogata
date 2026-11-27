@@ -99,6 +99,48 @@ function createProxyFetch(): typeof fetch {
   return proxyFetch as typeof fetch;
 }
 
+/** How old SABR data may be and still be taken as this load's. */
+const SABR_DATA_MAX_AGE_MS = 60_000;
+
+const readSabrData = (videoId: string): SabrData | undefined => {
+  try {
+    const data: SabrData = JSON.parse(
+      localStorage.getItem(SABR_DATA_KEY) ?? ""
+    );
+    if (
+      data.videoId === videoId &&
+      Date.now() - (data.createdAt ?? 0) < SABR_DATA_MAX_AGE_MS
+    ) {
+      return data;
+    }
+  } catch {}
+  return undefined;
+};
+
+/**
+ * VideoGata starts the player frame without waiting for onGetVideo, so the
+ * player can come up before this video's SABR data is stored -- and what's
+ * stored then is the previous video's, an old session YouTube answers with
+ * nothing but backoffs. Wait for data that is this video's and fresh.
+ */
+const waitForSabrData = (videoId: string): Promise<SabrData> =>
+  new Promise((resolve) => {
+    const data = readSabrData(videoId);
+    if (data) {
+      resolve(data);
+      return;
+    }
+    const onStorage = (event: StorageEvent) => {
+      if (event.key !== SABR_DATA_KEY) return;
+      const data = readSabrData(videoId);
+      if (data) {
+        window.removeEventListener("storage", onStorage);
+        resolve(data);
+      }
+    };
+    window.addEventListener("storage", onStorage);
+  });
+
 const loadYouTubeIFramePlayer = () => {
   const playerDiv = document.getElementById("player")!;
   playerDiv.style.display = "";
@@ -167,13 +209,8 @@ const loadSabrPlayer = async () => {
   playerDiv.style.display = "none";
   videoContainer.style.display = "";
 
-  const sabrDataStr = localStorage.getItem(SABR_DATA_KEY);
-  if (!sabrDataStr) {
-    console.error("[Player] No SABR data found in localStorage");
-    return;
-  }
-
-  const sabrData: SabrData = JSON.parse(sabrDataStr);
+  const apiId = new URLSearchParams(location.search).get("apiId") ?? "";
+  const sabrData = await waitForSabrData(apiId);
   console.log("[Player] SABR data loaded for video:", sabrData.videoId);
 
   // Initialize Shaka

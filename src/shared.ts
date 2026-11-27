@@ -254,4 +254,6 @@ export interface SabrData {
   isLive: boolean;
   isPostLiveDVR: boolean;
   liveManifestUrl?: string;
+  /** When the plugin stored it, so the player can tell it from a stale copy. */
+  createdAt: number;
 }

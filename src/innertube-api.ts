@@ -363,6 +363,7 @@ export const getVideoFromApiIdInnertube = async (
       isLive,
       isPostLiveDVR,
       liveManifestUrl,
+      createdAt: Date.now(),
     };
 
     storage.setItem(SABR_DATA_KEY, JSON.stringify(sabrData));
