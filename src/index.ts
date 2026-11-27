@@ -1,8 +1,6 @@
 import {
   MessageType,
   UiMessageType,
-  arrayBufferToBase64,
-  base64ToArrayBuffer,
   storage,
 } from "./shared";
 import {
@@ -167,7 +165,7 @@ application.onUiMessage = async (message: UiMessageType) => {
           headers: message.headers,
         };
         if (message.body) {
-          fetchInit.body = new Uint8Array(base64ToArrayBuffer(message.body));
+          fetchInit.body = new Uint8Array(message.body);
         }
         const fetchResponse = await application.networkRequest(
           message.url,
@@ -184,7 +182,7 @@ application.onUiMessage = async (message: UiMessageType) => {
           status: fetchResponse.status,
           statusText: fetchResponse.statusText,
           headers: responseHeaders,
-          body: arrayBufferToBase64(responseBuffer),
+          body: responseBuffer,
         });
       } catch (err: any) {
         sendMessage({
@@ -193,7 +191,7 @@ application.onUiMessage = async (message: UiMessageType) => {
           status: 0,
           statusText: "",
           headers: {},
-          body: "",
+          body: new ArrayBuffer(0),
         });
       }
       break;

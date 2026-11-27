@@ -3,8 +3,6 @@ import {
   UiMessageType,
   SABR_DATA_KEY,
   SabrData,
-  arrayBufferToBase64,
-  base64ToArrayBuffer,
 } from "./shared";
 
 const getTime = () => {
@@ -47,17 +45,23 @@ function createProxyFetch(): typeof fetch {
       });
     }
 
-    let body: string | undefined;
+    let body: ArrayBuffer | undefined;
     if (init?.body) {
       let arrayBuffer: ArrayBuffer;
       if (init.body instanceof ArrayBuffer) {
         arrayBuffer = init.body;
       } else if (ArrayBuffer.isView(init.body)) {
-        arrayBuffer = init.body.buffer as ArrayBuffer;
+        // Only the view's bytes: protobuf's encode() can return a view into
+        // a larger buffer.
+        const view = init.body;
+        arrayBuffer = view.buffer.slice(
+          view.byteOffset,
+          view.byteOffset + view.byteLength
+        ) as ArrayBuffer;
       } else {
         arrayBuffer = await new Response(init.body as any).arrayBuffer();
       }
-      body = arrayBufferToBase64(arrayBuffer);
+      body = arrayBuffer;
     }
 
     return new Promise<Response>((resolve, reject) => {
@@ -74,8 +78,7 @@ function createProxyFetch(): typeof fetch {
             return;
           }
 
-          const bodyBytes = base64ToArrayBuffer(data.body);
-          const response = new Response(bodyBytes, {
+          const response = new Response(data.body, {
             status: data.status,
             statusText: data.statusText,
             headers: data.headers,
